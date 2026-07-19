@@ -48,3 +48,7 @@ next-env.d.ts
 /dev.db-journal
 /prisma/dev.db
 /prisma/dev.db-journal
+
+# scripts locaux avec secrets — jamais dans git
+claude-kimi.sh
+test-results/
