@@ -1,0 +1,136 @@
+{
+  "id": 6038,
+  "titre": "Chaussettes",
+  "description": "Vous jouez des chaussettes, les meilleurÂ·eÂ·s aventuriÃ¨rÂ·eÂ·s  de la paniÃ¨re Ã  linge. Mais voilÃ  quelques cycles de lavage que vous n'avez pas de nouvelles de l'une de vos camarades. Vous allez devoir partir Ã  sa recherche Ã  travers la maison.\nPartie adaptÃ©e aux gens qui dÃ©butent en JDR.",
+  "systemeJeu": "Chaussettes (systÃ¨me trÃ¨s simple)",
+  "ownerId": 1,
+  "salleId": 1,
+  "startDatetime": "$D2026-08-14T12:00:00.000Z",
+  "endDatetime": "$D2026-08-14T13:00:00.000Z",
+  "maxPlayers": 6,
+  "reservedByAdmin": 0,
+  "adminPlaces": 2,
+  "statut": "open",
+  "createdAt": "$D2026-07-14T11:11:28.118Z",
+  "updatedAt": "$D2026-07-14T18:57:58.150Z",
+  "owner": {
+    "id": 1,
+    "pseudo": "Nours42"
+  },
+  "salle": {
+    "nom": "Table 00 Sub ZÃ©ro",
+    "lieu": "Ãglise, cotÃ© accueil"
+  },
+  "labels": [
+    {
+      "tableId": 6038,
+      "labelId": 1,
+      "label": {
+        "id": 1,
+        "nom": "PEGI : Enfant",
+        "couleur": "#6366f1",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 10,
+      "label": {
+        "id": 10,
+        "nom": "Fantastique",
+        "couleur": "#f6d32d",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 12,
+      "label": {
+        "id": 12,
+        "nom": "Science-fiction",
+        "couleur": "#f6d32d",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 15,
+      "label": {
+        "id": 15,
+        "nom": "EnquÃªte",
+        "couleur": "#f6d32d",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 17,
+      "label": {
+        "id": 17,
+        "nom": "Bienveillant",
+        "couleur": "#f6d32d",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 20,
+      "label": {
+        "id": 20,
+        "nom": "DÃ©butants bienvenus",
+        "couleur": "#33d17a",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 21,
+      "label": {
+        "id": 21,
+        "nom": "Humour",
+        "couleur": "#f6d32d",
+        "isSystem": false,
+        "isAdult": false
+      }
+    },
+    {
+      "tableId": 6038,
+      "labelId": 26,
+      "label": {
+        "id": 26,
+        "nom": "MaitrisÃ© par l'auteur / l'autrice",
+        "couleur": "#33d17a",
+        "isSystem": false,
+        "isAdult": false
+      }
+    }
+  ],
+  "registrations": [
+    {
+      "userId": 17388,
+      "statut": "confirmed"
+    },
+    {
+      "userId": 17324,
+      "statut": "confirmed"
+    },
+    {
+      "userId": 17329,
+      "statut": "confirmed"
+    }
+  ],
+  "_count": {
+    "registrations": 3
+  },
+  "confirmed": 3,
+  "placesLibresTotal": 3,
+  "placesLibresPubliques": 1,
+  "estComplete": false,
+  "estPlacesAdminUniquement": false
+}
