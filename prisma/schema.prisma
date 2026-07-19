@@ -11,3 +11,68 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+/// Favoris entre joueurs — notre couche, absente de l'officiel.
+/// userId / favoriteUserId = ids numériques officiels (pas de FK locale, on ne
+/// réplique pas la base des utilisateurs).
+model Favorite {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  favoriteUserId Int
+  favoritePseudo String
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, favoriteUserId])
+  @@index([userId])
+}
+
+/// Annuaire id officiel → pseudo, alimenté opportunément (owners du payload RSC,
+/// recherche de joueurs, favoris, RSC détail tablée). L'API officielle ne met
+/// que des userId nus dans `registrations` : cet annuaire permet d'afficher
+/// « qui sera présent » sans round-trip. Un pseudo peut être périmé si le
+/// joueur se renomme — acceptable pour 3 jours de convention.
+model KnownUser {
+  id        Int      @id // id officiel, PAS d'autoincrement
+  pseudo    String
+  updatedAt DateTime @updatedAt
+}
+
+/// Presets de filtres sauvegardés (nice-to-have Phase 5, jamais construit en 2024).
+model FilterPreset {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  /// JSON-encodé : forme compatible avec lib/filter-params.ts
+  params    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+/// État durable du poller Slack. Une ligne unique (id=1) distingue le tout
+/// premier passage d'une convention momentanément sans tablées.
+model SlackSyncState {
+  id            Int       @id @default(1)
+  initializedAt DateTime?
+  runningSince  DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+/// IDs déjà publiés dans Slack. Les lignes du premier passage constituent la
+/// référence silencieuse ; les suivantes sont ajoutées après succès de Slack.
+model SlackAnnouncement {
+  tableId     Int      @id
+  messageTs   String?
+  announcedAt DateTime @default(now())
+}
+
+/// Recherche factuelle mutualisée par système de jeu. Évite de rappeler
+/// Perplexity pour chaque nouvelle tablée utilisant le même système.
+model SlackGameResearch {
+  key          String   @id
+  systemName   String
+  summary      String
+  sources      String
+  researchedAt DateTime @default(now())
+}

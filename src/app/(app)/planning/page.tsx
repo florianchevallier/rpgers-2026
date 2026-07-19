@@ -1,10 +1,12 @@
-import { CalendarCheck, Crown, TriangleAlert } from "lucide-react";
+import { CalendarCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { SeatSeal } from "@/components/tables/seat-seal";
+import {
+  type PlanningDay,
+  PlanningView,
+} from "@/components/planning/planning-view";
 import { isMine } from "@/domain/filters";
 import {
   formatDayTitle,
-  formatSlot,
   groupTablesByDay,
   roman,
   slotsOverlap,
@@ -37,10 +39,40 @@ export default async function PlanningPage() {
     }
   }
 
-  const days = groupTablesByDay(mine);
-  // numérotation figée sur l'évènement complet
-  const dayNumberByKey = new Map(
-    groupTablesByDay(all).map((d) => [d.key, d.dayNumber]),
+  // Les jours de navigation couvrent toute la convention, y compris ceux où
+  // l'utilisateur n'a encore aucune partie.
+  const eventDays = groupTablesByDay(all);
+  const mineByDay = new Map(
+    groupTablesByDay(mine).map((day) => [day.key, day]),
+  );
+  const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const days: PlanningDay[] = eventDays.map((eventDay) => ({
+    key: eventDay.key,
+    label: formatDayTitle(eventDay.date),
+    shortLabel: shortDayFormatter.format(eventDay.date),
+    dayNumber: roman(eventDay.dayNumber),
+    tables: (mineByDay.get(eventDay.key)?.tables ?? []).map((table) => ({
+      id: table.id,
+      title: table.titre,
+      start: table.startDatetime.toISOString(),
+      end: table.endDatetime.toISOString(),
+      room: table.salle.nom,
+      location: table.salle.lieu,
+      gameMaster: table.owner.pseudo,
+      isOwner: table.ownerId === session.user.id,
+      hasConflict: conflictIds.has(table.id),
+      seatsLeft: table.placesLibresPubliques,
+    })),
+  }));
+
+  const todayKey = new Date().toLocaleDateString("sv-SE");
+  const initialDayIndex = Math.max(
+    0,
+    days.findIndex((day) => day.key >= todayKey && day.tables.length > 0),
   );
 
   return (
@@ -89,60 +121,7 @@ export default async function PlanningPage() {
           </p>
         </div>
       ) : (
-        days.map((day) => (
-          <section key={day.key} aria-labelledby={`planning-${day.key}`}>
-            <h2 id={`planning-${day.key}`} className="day-heading">
-              Jour {roman(dayNumberByKey.get(day.key) ?? day.dayNumber)} —{" "}
-              {formatDayTitle(day.date)}
-            </h2>
-            <div className="mt-1 border-t border-primary/30" aria-hidden />
-            <ol className="mt-4 flex flex-col gap-2.5">
-              {day.tables.map((table) => {
-                const conflict = conflictIds.has(table.id);
-                const isOwner = table.ownerId === session.user.id;
-                return (
-                  <li key={table.id}>
-                    <Link
-                      href={`/tables/${table.id}`}
-                      className={`flex items-center gap-4 rounded-xl border p-3.5 transition-colors ${
-                        conflict
-                          ? "border-destructive/60 bg-destructive/5"
-                          : "border-border bg-card hover:border-primary/50"
-                      }`}
-                    >
-                      <span className="w-24 shrink-0 text-sm font-semibold">
-                        {formatSlot(table.startDatetime, table.endDatetime)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
-                          <span className="truncate font-heading font-semibold">
-                            {table.titre}
-                          </span>
-                          {isOwner && (
-                            <Crown
-                              className="size-3.5 shrink-0 text-primary"
-                              aria-label="Tu es le MJ"
-                            />
-                          )}
-                          {conflict && (
-                            <TriangleAlert
-                              className="size-3.5 shrink-0 text-destructive"
-                              aria-label="Conflit d'horaire"
-                            />
-                          )}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {table.salle.nom} · MJ {table.owner.pseudo}
-                        </span>
-                      </span>
-                      <SeatSeal table={table} size="sm" />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        ))
+        <PlanningView days={days} initialDayIndex={initialDayIndex} />
       )}
     </div>
   );

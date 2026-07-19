@@ -1,10 +1,11 @@
 "use client";
 
-import { Swords } from "lucide-react";
+import { CircleUser, Swords } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -62,9 +63,22 @@ export function Navbar({ pseudo }: Props) {
           <NotificationBell />
           <ThemeToggle />
           {pseudo && (
-            <span className="ml-1 hidden max-w-32 truncate text-sm text-muted-foreground md:inline">
-              {pseudo}
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="gap-1.5 pl-2 pr-2.5"
+            >
+              <Link
+                href="/profile"
+                aria-current={pathname === "/profile" ? "page" : undefined}
+              >
+                <CircleUser className="size-4" aria-hidden />
+                <span className="hidden max-w-32 truncate md:inline">
+                  {pseudo}
+                </span>
+              </Link>
+            </Button>
           )}
         </div>
       </div>

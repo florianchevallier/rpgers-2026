@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, ChevronsUpDown, Search, X } from "lucide-react";
+import { ChevronsUpDown, Search, X } from "lucide-react";
 import { useState } from "react";
+import { FilterPresetsMenu } from "@/components/tables/filter-presets-menu";
+import { LabelFilterRow } from "@/components/tables/label-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +11,6 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
@@ -32,17 +33,35 @@ type Props = {
   onQueryChange: (q: string) => void;
 };
 
-/** Barre de filtres — recherche + chips jours + toggles + popover labels + MJ. */
+/** Barre de filtres — recherche + chips jours + toggles + popover labels + MJ + presets. */
 export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
-  const { params, setParams, activeCount } = useTableFilters();
+  const { params, setParams, activeCount, RESET } = useTableFilters();
   const [labelsOpen, setLabelsOpen] = useState(false);
 
-  const toggleLabel = (id: number) => {
-    const next = params.labels.includes(id)
-      ? params.labels.filter((l) => l !== id)
-      : [...params.labels, id];
-    setParams({ labels: next });
+  const toggleIncludeLabel = (id: number) => {
+    const included = params.labels.includes(id);
+    setParams({
+      labels: included
+        ? params.labels.filter((l) => l !== id)
+        : [...params.labels, id],
+      // inclure retire automatiquement toute exclusion contradictoire
+      excludedLabels: params.excludedLabels.filter((l) => l !== id),
+    });
   };
+
+  const toggleExcludeLabel = (id: number) => {
+    const excluded = params.excludedLabels.includes(id);
+    setParams({
+      excludedLabels: excluded
+        ? params.excludedLabels.filter((l) => l !== id)
+        : [...params.excludedLabels, id],
+      labels: params.labels.filter((l) => l !== id),
+    });
+  };
+
+  const labelCount = params.labels.length + params.excludedLabels.length;
+  const includedLabelIds = new Set(params.labels);
+  const excludedLabelIds = new Set(params.excludedLabels);
 
   return (
     <div className="flex flex-col gap-3">
@@ -94,6 +113,20 @@ export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
           Mes parties
         </FilterChip>
         <FilterChip
+          active={params.favorites}
+          onClick={() => setParams({ favorites: !params.favorites })}
+        >
+          Mes favoris
+        </FilterChip>
+        <FilterChip
+          active={params.hideConflicting}
+          onClick={() =>
+            setParams({ hideConflicting: !params.hideConflicting })
+          }
+        >
+          Masquer les conflits
+        </FilterChip>
+        <FilterChip
           active={params.past}
           onClick={() => setParams({ past: !params.past })}
         >
@@ -101,45 +134,43 @@ export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
         </FilterChip>
       </div>
 
-      {/* labels + MJ + reset */}
+      {/* labels + MJ + presets + reset */}
       <div className="flex flex-wrap items-center gap-1.5">
         <Popover open={labelsOpen} onOpenChange={setLabelsOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5">
               Labels
-              {params.labels.length > 0 && (
-                <Badge className="px-1.5">{params.labels.length}</Badge>
-              )}
+              {labelCount > 0 && <Badge className="px-1.5">{labelCount}</Badge>}
               <ChevronsUpDown
                 className="size-3.5 text-muted-foreground"
                 aria-hidden
               />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
+          <PopoverContent className="w-72 p-0" align="start">
             <Command>
               <CommandInput placeholder="Filtrer les labels…" />
+              <p className="border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+                Clic = inclure · <span aria-hidden>⊘</span> = exclure
+              </p>
               <CommandList>
                 <CommandEmpty>Aucun label.</CommandEmpty>
                 <CommandGroup>
                   {labels.map((label) => {
-                    const selected = params.labels.includes(label.id);
+                    const state = includedLabelIds.has(label.id)
+                      ? "included"
+                      : excludedLabelIds.has(label.id)
+                        ? "excluded"
+                        : "none";
                     return (
-                      <CommandItem
+                      <LabelFilterRow
                         key={label.id}
-                        value={label.nom}
-                        onSelect={() => toggleLabel(label.id)}
-                      >
-                        <span
-                          className="size-2.5 rounded-full ring-1 ring-black/20"
-                          style={{ backgroundColor: label.couleur }}
-                          aria-hidden
-                        />
-                        <span className="flex-1">{label.nom}</span>
-                        {selected && (
-                          <Check className="size-4 text-primary" aria-hidden />
-                        )}
-                      </CommandItem>
+                        nom={label.nom}
+                        couleur={label.couleur}
+                        state={state}
+                        onToggleInclude={() => toggleIncludeLabel(label.id)}
+                        onToggleExclude={() => toggleExcludeLabel(label.id)}
+                      />
                     );
                   })}
                 </CommandGroup>
@@ -149,34 +180,53 @@ export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
         </Popover>
 
         {mjs.length > 0 && (
-          <select
-            value={params.mj ?? ""}
-            onChange={(e) => setParams({ mj: e.target.value || null })}
-            aria-label="Filtrer par MJ"
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            <option value="">Tous les MJ</option>
-            {mjs.map((mj) => (
-              <option key={mj} value={mj}>
-                {mj}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              value={params.mj ?? ""}
+              onChange={(e) =>
+                setParams({
+                  mj: e.target.value || null,
+                  excludedMj: e.target.value ? null : params.excludedMj,
+                })
+              }
+              aria-label="Filtrer par MJ"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="">Tous les MJ</option>
+              {mjs.map((mj) => (
+                <option key={mj} value={mj}>
+                  {mj}
+                </option>
+              ))}
+            </select>
+            <select
+              value={params.excludedMj ?? ""}
+              onChange={(e) =>
+                setParams({
+                  excludedMj: e.target.value || null,
+                  mj: e.target.value ? null : params.mj,
+                })
+              }
+              aria-label="Exclure un MJ"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm text-muted-foreground"
+            >
+              <option value="">Exclure un MJ…</option>
+              {mjs.map((mj) => (
+                <option key={mj} value={mj}>
+                  {mj}
+                </option>
+              ))}
+            </select>
+          </>
         )}
+
+        <FilterPresetsMenu currentParams={params} onApply={setParams} />
 
         {activeCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              setParams({
-                day: null,
-                labels: [],
-                mj: null,
-                free: false,
-                mine: false,
-              })
-            }
+            onClick={() => setParams(RESET)}
             className="gap-1 text-muted-foreground"
           >
             <X className="size-3.5" aria-hidden />

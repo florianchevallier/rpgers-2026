@@ -9,6 +9,7 @@ const envSchema = z.object({
   SESSION_SECRET: z
     .string()
     .min(32, "SESSION_SECRET doit faire ≥ 32 caractères"),
+  DATABASE_URL: z.string().min(1).default("file:./dev.db"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -20,6 +21,7 @@ export function getEnv(): Env {
     cached = envSchema.parse({
       RPGERS_API_URL: process.env.RPGERS_API_URL,
       SESSION_SECRET: process.env.SESSION_SECRET,
+      DATABASE_URL: process.env.DATABASE_URL,
     });
   }
   return cached;

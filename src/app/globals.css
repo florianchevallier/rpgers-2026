@@ -161,6 +161,11 @@
     @apply font-heading text-lg font-semibold tracking-[0.18em] uppercase text-primary;
   }
 
+  /* Repère de jour figé sous la navbar pendant le scroll (liste longue) */
+  .day-heading-sticky {
+    @apply sticky top-14 z-30 -mx-4 bg-background/90 px-4 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/75;
+  }
+
   /* Sceau de cire — compteur de places, élément signature */
   .seat-seal {
     @apply relative grid place-items-center rounded-full font-heading font-bold;

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, DEFAULT_FILTERS, isMine } from "@/domain/filters";
+import {
+  applyFilters,
+  DEFAULT_FILTERS,
+  type FilterContext,
+  isMine,
+} from "@/domain/filters";
 import type { RpgersTable } from "@/server/rpgers-schemas";
 
 const NOW = new Date("2026-08-14T15:00:00");
@@ -17,11 +22,19 @@ const table = (id: number, overrides: Partial<RpgersTable> = {}): RpgersTable =>
     ...overrides,
   }) as RpgersTable;
 
+const ctx = (overrides: Partial<FilterContext> = {}): FilterContext => ({
+  now: NOW,
+  currentUserId: 99,
+  myTables: [],
+  favoriteIds: new Set(),
+  ...overrides,
+});
+
 describe("applyFilters", () => {
   it("masque les tablées passées par défaut", () => {
     const past = table(1, { endDatetime: new Date("2026-08-14T12:00:00") });
     const future = table(2);
-    expect(applyFilters([past, future], DEFAULT_FILTERS, NOW, 99)).toEqual([
+    expect(applyFilters([past, future], DEFAULT_FILTERS, ctx())).toEqual([
       future,
     ]);
   });
@@ -36,8 +49,7 @@ describe("applyFilters", () => {
       applyFilters(
         [otherDay, sameDay],
         { ...DEFAULT_FILTERS, day: "2026-08-14" },
-        NOW,
-        99,
+        ctx(),
       ),
     ).toEqual([sameDay]);
   });
@@ -88,10 +100,47 @@ describe("applyFilters", () => {
       applyFilters(
         [both, onlyOne],
         { ...DEFAULT_FILTERS, labelIds: [10, 21] },
-        NOW,
-        99,
+        ctx(),
       ),
     ).toEqual([both]);
+  });
+
+  it("exclut les tablées portant un label exclu", () => {
+    const withLabel = table(1, {
+      labels: [
+        {
+          tableId: 1,
+          labelId: 10,
+          label: {
+            id: 10,
+            nom: "Horreur",
+            couleur: "#000",
+            isSystem: false,
+            isAdult: false,
+          },
+        },
+      ],
+    });
+    const withoutLabel = table(2);
+    expect(
+      applyFilters(
+        [withLabel, withoutLabel],
+        { ...DEFAULT_FILTERS, excludedLabelIds: [10] },
+        ctx(),
+      ),
+    ).toEqual([withoutLabel]);
+  });
+
+  it("exclut le MJ choisi", () => {
+    const excluded = table(1, { owner: { id: 1, pseudo: "MJ1" } });
+    const other = table(2, { owner: { id: 2, pseudo: "MJ2" } });
+    expect(
+      applyFilters(
+        [excluded, other],
+        { ...DEFAULT_FILTERS, excludedMj: "MJ1" },
+        ctx(),
+      ),
+    ).toEqual([other]);
   });
 
   it("freeSeatsOnly exclut les complètes", () => {
@@ -101,8 +150,7 @@ describe("applyFilters", () => {
       applyFilters(
         [full, open],
         { ...DEFAULT_FILTERS, freeSeatsOnly: true },
-        NOW,
-        99,
+        ctx(),
       ),
     ).toEqual([open]);
   });
@@ -120,9 +168,46 @@ describe("applyFilters", () => {
       applyFilters(
         [mineAsOwner, mineAsPlayer, notMine],
         { ...DEFAULT_FILTERS, mineOnly: true },
-        NOW,
-        42,
+        ctx({ currentUserId: 42 }),
       ),
     ).toEqual([mineAsOwner, mineAsPlayer]);
+  });
+
+  it("favoritesOnly : MJ ou joueur favori inscrit", () => {
+    const favMj = table(1, { ownerId: 7, owner: { id: 7, pseudo: "MJ7" } });
+    const favPlayer = table(2, {
+      registrations: [{ userId: 8, statut: "confirmed" }],
+    });
+    const noFav = table(3);
+    expect(
+      applyFilters(
+        [favMj, favPlayer, noFav],
+        { ...DEFAULT_FILTERS, favoritesOnly: true },
+        ctx({ favoriteIds: new Set([7, 8]) }),
+      ),
+    ).toEqual([favMj, favPlayer]);
+  });
+
+  it("hideConflicting : masque les tablées en chevauchement avec mon planning (hors les miennes)", () => {
+    const mine = table(1, {
+      ownerId: 42,
+      startDatetime: new Date("2026-08-14T14:00:00"),
+      endDatetime: new Date("2026-08-14T17:00:00"),
+    });
+    const overlapping = table(2, {
+      startDatetime: new Date("2026-08-14T15:00:00"),
+      endDatetime: new Date("2026-08-14T18:00:00"),
+    });
+    const free = table(3, {
+      startDatetime: new Date("2026-08-14T18:00:00"),
+      endDatetime: new Date("2026-08-14T20:00:00"),
+    });
+    expect(
+      applyFilters(
+        [mine, overlapping, free],
+        { ...DEFAULT_FILTERS, hideConflicting: true },
+        ctx({ currentUserId: 42, myTables: [mine] }),
+      ),
+    ).toEqual([mine, free]);
   });
 });
