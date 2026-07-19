@@ -1,0 +1,15 @@
+# Lefthook — hooks git rapides (remplace Husky)
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{js,jsx,ts,tsx,json,css}"
+      run: npx biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    - name: types
+      run: npx tsc --noEmit
+
+pre-push:
+  jobs:
+    - name: unit-tests
+      run: npm run test
