@@ -5,7 +5,7 @@ import type { RpgersTable } from "@/server/rpgers-schemas";
 type Props = {
   table: Pick<
     RpgersTable,
-    "placesLibresPubliques" | "maxPlayers" | "confirmed"
+    "placesLibresPubliques" | "placesLibresTotal" | "maxPlayers" | "confirmed"
   >;
   size?: "sm" | "md";
 };
@@ -13,6 +13,7 @@ type Props = {
 const LABELS = {
   open: "places libres",
   last: "dernière place !",
+  adminOnly: "places tente JDR uniquement",
   full: "complet",
 } as const;
 

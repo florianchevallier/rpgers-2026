@@ -88,15 +88,22 @@ export function formatDayTitle(date: Date): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export type SeatState = "open" | "last" | "full";
+export type SeatState = "open" | "last" | "adminOnly" | "full";
 
-/** État du sceau de places : vert ≥ 2, or = 1 (dernière !), cramoisi = complet. */
+/**
+ * État du sceau de places :
+ * - vert ≥ 2 places publiques
+ * - or = 1 (dernière !)
+ * - gris-bleu = places tente JDR uniquement (0 publique mais total > 0)
+ * - cramoisi = complet (0 place du tout)
+ */
 export function seatState(
-  table: Pick<RpgersTable, "placesLibresPubliques">,
+  table: Pick<RpgersTable, "placesLibresPubliques" | "placesLibresTotal">,
 ): SeatState {
-  if (table.placesLibresPubliques <= 0) return "full";
+  if (table.placesLibresPubliques >= 2) return "open";
   if (table.placesLibresPubliques === 1) return "last";
-  return "open";
+  if (table.placesLibresTotal > 0) return "adminOnly";
+  return "full";
 }
 
 /** Deux créneaux [start,end[ se chevauchent-ils ? */

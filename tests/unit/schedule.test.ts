@@ -54,11 +54,22 @@ describe("formatTime / formatSlot", () => {
 });
 
 describe("seatState", () => {
-  it("open ≥ 2, last = 1, full = 0", () => {
-    expect(seatState({ placesLibresPubliques: 3 })).toBe("open");
-    expect(seatState({ placesLibresPubliques: 2 })).toBe("open");
-    expect(seatState({ placesLibresPubliques: 1 })).toBe("last");
-    expect(seatState({ placesLibresPubliques: 0 })).toBe("full");
+  it("open ≥ 2, last = 1, adminOnly si seulement des places JDR, full sinon", () => {
+    expect(seatState({ placesLibresPubliques: 3, placesLibresTotal: 5 })).toBe(
+      "open",
+    );
+    expect(seatState({ placesLibresPubliques: 2, placesLibresTotal: 4 })).toBe(
+      "open",
+    );
+    expect(seatState({ placesLibresPubliques: 1, placesLibresTotal: 3 })).toBe(
+      "last",
+    );
+    expect(seatState({ placesLibresPubliques: 0, placesLibresTotal: 2 })).toBe(
+      "adminOnly",
+    );
+    expect(seatState({ placesLibresPubliques: 0, placesLibresTotal: 0 })).toBe(
+      "full",
+    );
   });
 });
 

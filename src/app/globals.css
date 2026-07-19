@@ -188,6 +188,11 @@
     --seal-ring: oklch(0 0 0 / 25%);
     --seal-fg: var(--primary-foreground);
   }
+  .seat-seal[data-state="adminOnly"] {
+    --seal-bg: var(--muted);
+    --seal-ring: oklch(0 0 0 / 25%);
+    --seal-fg: var(--muted-foreground);
+  }
   .seat-seal[data-state="full"] {
     --seal-bg: var(--destructive);
     --seal-ring: oklch(0 0 0 / 30%);
