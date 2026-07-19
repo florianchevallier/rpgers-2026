@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { planSlackSync } from "@/domain/slack-notifications";
 import { db } from "@/server/db";
 import { getTables, loginOfficial } from "@/server/rpgers-client";
+import { envOrFile } from "@/server/secret-env";
 import { getSlackConfig } from "@/server/slack-config";
 import { postTableToSlack } from "@/server/slack-notifications";
 
@@ -29,7 +30,7 @@ function isAuthorized(request: Request): boolean {
     : null;
   return secretMatches(
     bearer ?? request.headers.get("x-cron-secret"),
-    process.env.SLACK_CRON_SECRET,
+    envOrFile("SLACK_CRON_SECRET"),
   );
 }
 
