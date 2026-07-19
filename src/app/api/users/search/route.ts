@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/server/auth";
 import { searchUsers } from "@/server/rpgers-client";
+import { harvestUsers } from "@/server/user-directory";
 
 const querySchema = z.object({
   q: z.string().min(1).max(50),
@@ -25,5 +26,7 @@ export async function GET(request: Request) {
   const users = await searchUsers(session.jwt, parsed.data.q, {
     tableId: parsed.data.tableId,
   });
+  // moisson opportuniste de l'annuaire id→pseudo (« joueurs présents »)
+  after(() => harvestUsers(users));
   return NextResponse.json({ users });
 }

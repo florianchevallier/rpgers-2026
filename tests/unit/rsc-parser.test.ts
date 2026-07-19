@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { deriveComputedFields, enrichRawTable } from "@/domain/derived-fields";
 import type { RawRpgersTable } from "@/server/rpgers-schemas";
-import { extractTableWrappers } from "@/server/rsc-parser";
+import {
+  extractDetailPlayerPseudos,
+  extractTableWrappers,
+  extractUserSummaries,
+} from "@/server/rsc-parser";
 
 const snippet = readFileSync("tests/fixtures/rsc-snippet.txt", "utf-8");
 
@@ -28,6 +32,51 @@ describe("extractTableWrappers (snippet RSC réel)", () => {
     expect(wrappers).toHaveLength(1);
     expect(wrappers[0].table.titre).toBe('Partie {spéciale} "truc"');
     expect(wrappers[0].isRegistered).toBe(true);
+  });
+});
+
+describe("extractUserSummaries", () => {
+  it("moissonne les paires {id, pseudo} du snippet RSC réel", () => {
+    const users = extractUserSummaries(snippet);
+    expect(users.length).toBeGreaterThan(0);
+    expect(
+      users.every((u) => Number.isInteger(u.id) && u.pseudo.length > 0),
+    ).toBe(true);
+  });
+
+  it("dédoublonne par id et décode les échappements", () => {
+    const users = extractUserSummaries(
+      '{"id":5,"pseudo":"Zo\\u00e9"} … {"id":5,"pseudo":"Zo\\u00e9"} {"id":6,"pseudo":"L\\"o"}',
+    );
+    expect(users).toEqual([
+      { id: 5, pseudo: "Zoé" },
+      { id: 6, pseudo: 'L"o' },
+    ]);
+  });
+
+  it("texte sans utilisateur → []", () => {
+    expect(extractUserSummaries("rien")).toEqual([]);
+  });
+});
+
+describe("extractDetailPlayerPseudos (snippet RSC réel de la page détail)", () => {
+  const detailSnippet = readFileSync(
+    "tests/fixtures/rsc-detail-snippet.txt",
+    "utf-8",
+  );
+
+  it("extrait les pseudos des inscrits, sans le ✓", () => {
+    expect(extractDetailPlayerPseudos(detailSnippet)).toEqual([
+      "PetitCastor",
+      "10jonction",
+    ]);
+  });
+
+  it("payload sans section Joueurs → []", () => {
+    expect(extractDetailPlayerPseudos("autre chose")).toEqual([]);
+    expect(extractDetailPlayerPseudos('"Joueurs (" mais pas de ul')).toEqual(
+      [],
+    );
   });
 });
 

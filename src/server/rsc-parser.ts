@@ -58,6 +58,58 @@ export function extractTableWrappers(rscText: string): RscTableWrapper[] {
   return wrappers;
 }
 
+/**
+ * Moissonne toutes les paires `{"id":N,"pseudo":"…"}` d'un payload RSC
+ * (owners sur la home ; potentiellement les inscrits sur la page détail).
+ * Alimente l'annuaire KnownUser — best-effort, une paire ratée n'est pas grave.
+ */
+export function extractUserSummaries(
+  rscText: string,
+): { id: number; pseudo: string }[] {
+  const users = new Map<number, string>();
+  const re = /\{"id":(\d+),"pseudo":"((?:[^"\\]|\\.)*)"/g;
+  for (const match of rscText.matchAll(re)) {
+    try {
+      // JSON.parse pour décoder les échappements (\", \\u00e9…)
+      users.set(Number(match[1]), JSON.parse(`"${match[2]}"`) as string);
+    } catch {
+      // séquence d'échappement invalide → on saute
+    }
+  }
+  return [...users].map(([id, pseudo]) => ({ id, pseudo }));
+}
+
+/**
+ * Extrait les pseudos des inscrits depuis le payload RSC de la page détail
+ * officielle (`/tables/:id`). Les joueurs y sont rendus en JSX pur, SANS
+ * userId (vérifié le 19 juil. 2026 sur tablée réelle) :
+ *   "children":["Joueurs (",2,"/",5,")"] … ["$","ul",…,
+ *     ["$","li","<regId>",{…,"children":[[…"✓"],["$","span",null,{"children":"PetitCastor"}],…
+ * → on repère la section « Joueurs ( », on lit le <ul> équilibré, puis les
+ * spans dont l'unique prop est `children` (le ✓ a un style, il ne matche pas).
+ */
+export function extractDetailPlayerPseudos(rscText: string): string[] {
+  const marker = rscText.indexOf('"Joueurs (');
+  if (marker === -1) return [];
+  const ulStart = rscText.indexOf('["$","ul"', marker);
+  if (ulStart === -1) return [];
+  const braceStart = rscText.indexOf("{", ulStart);
+  if (braceStart === -1) return [];
+  const ulJson = readBalanced(rscText, braceStart);
+  if (!ulJson) return [];
+
+  const pseudos = new Set<string>();
+  for (const match of ulJson.matchAll(/\{"children":"((?:[^"\\]|\\.)*)"\}/g)) {
+    try {
+      const value = JSON.parse(`"${match[1]}"`) as string;
+      if (value && value !== "✓") pseudos.add(value);
+    } catch {
+      // séquence d'échappement invalide → on saute
+    }
+  }
+  return [...pseudos];
+}
+
 /** Lit un objet JSON `{…}` équilibré commençant à `start` (rscText[start] === '{'). */
 function readBalanced(text: string, start: number): string | null {
   if (text[start] !== "{") return null;

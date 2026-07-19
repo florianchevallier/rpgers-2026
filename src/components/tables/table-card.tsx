@@ -1,29 +1,30 @@
 import { CalendarClock, MapPin, User } from "lucide-react";
 import Link from "next/link";
+import { LabelChip } from "@/components/tables/label-badge";
+import { PlayersStrip } from "@/components/tables/players-strip";
 import { SeatSeal } from "@/components/tables/seat-seal";
+import { buildPlayerChips } from "@/domain/players";
 import { formatSlot } from "@/domain/schedule";
 import type { RpgersTable } from "@/server/rpgers-schemas";
 
 type Props = {
   table: RpgersTable;
+  /** annuaire id→pseudo (résolu côté serveur) — absent = pas de strip joueurs */
+  pseudoById?: ReadonlyMap<number, string>;
+  favoriteIds?: ReadonlySet<number>;
 };
 
-/** Chip de label : pastille de la couleur de donnée + nom. */
-function LabelChip({ nom, couleur }: { nom: string; couleur: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2 py-0.5 text-xs text-secondary-foreground">
-      <span
-        className="size-2 rounded-full ring-1 ring-black/20"
-        style={{ backgroundColor: couleur }}
-        aria-hidden
-      />
-      {nom}
-    </span>
-  );
-}
-
 /** Carte tablée = avis de quête épinglé au panneau de la taverne. */
-export function TableCard({ table }: Props) {
+export function TableCard({
+  table,
+  pseudoById = new Map(),
+  favoriteIds = new Set(),
+}: Props) {
+  const players = buildPlayerChips(
+    table.registrations,
+    pseudoById,
+    favoriteIds,
+  );
   return (
     <Link
       href={`/tables/${table.id}`}
@@ -70,6 +71,9 @@ export function TableCard({ table }: Props) {
               ))}
             </div>
           )}
+
+          {/* joueurs présents (favoris en liseré doré) */}
+          <PlayersStrip players={players} max={4} className="mt-2.5" />
         </div>
 
         <SeatSeal table={table} />

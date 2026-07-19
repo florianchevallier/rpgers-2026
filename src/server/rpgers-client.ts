@@ -21,7 +21,10 @@ import {
   urgentPlaceSchema,
   userSummarySchema,
 } from "@/server/rpgers-schemas";
-import { extractTableWrappers } from "@/server/rsc-parser";
+import {
+  extractDetailPlayerPseudos,
+  extractTableWrappers,
+} from "@/server/rsc-parser";
 
 /** Cookie de session officiel (JWT HS256, 7 j) — détenu UNIQUEMENT ici, côté serveur. */
 export const OFFICIAL_COOKIE_NAME = "rpgers_2026_session";
@@ -244,6 +247,32 @@ export async function getTable(jwt: string, id: number): Promise<RpgersTable> {
   if (!table)
     throw new ApiError("Tablée introuvable", 404, `/api/tables/${id}`);
   return table;
+}
+
+/**
+ * Pseudos des inscrits depuis la page détail officielle (`/tables/:id`, RSC) —
+ * seule source qui les expose, la liste ne donnant que des `userId` nus, et le
+ * détail les rendant en JSX pur SANS userId (l'appariement pseudo→id se fait
+ * ensuite via la recherche officielle, cf. user-directory). Best-effort :
+ * toute erreur ⇒ [] (l'UI dégrade en compteur), on ne casse jamais la fiche.
+ */
+export async function getTableDetailPseudos(
+  jwt: string,
+  id: number,
+): Promise<string[]> {
+  const { RPGERS_API_URL } = getEnv();
+  try {
+    const res = await fetch(`${RPGERS_API_URL}/tables/${id}`, {
+      headers: { Cookie: `${OFFICIAL_COOKIE_NAME}=${jwt}`, RSC: "1" },
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    return extractDetailPlayerPseudos(await res.text());
+  } catch {
+    return [];
+  }
 }
 
 export async function createTable(

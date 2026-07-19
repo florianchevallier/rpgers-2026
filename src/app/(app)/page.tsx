@@ -1,9 +1,12 @@
 import { CalendarX } from "lucide-react";
+import { after } from "next/server";
 import { TablesExplorer } from "@/components/tables/tables-explorer";
 import { requireSession } from "@/server/auth";
+import { listFavorites } from "@/server/favorites";
 import { getLabelsCatalog } from "@/server/labels";
 import { getTables, SchemaError } from "@/server/rpgers-client";
 import type { RpgersTable } from "@/server/rpgers-schemas";
+import { harvestUsers, resolvePseudos } from "@/server/user-directory";
 
 export const revalidate = 30;
 
@@ -31,11 +34,27 @@ async function loadTables(): Promise<{
 }
 
 export default async function TablesPage() {
-  const [{ tables, error }, labelsCatalog, session] = await Promise.all([
+  const session = await requireSession();
+  const [{ tables, error }, labelsCatalog, favorites] = await Promise.all([
     loadTables(),
     getLabelsCatalog(),
-    requireSession(),
+    listFavorites(session.user.id),
   ]);
+
+  // moisson opportuniste de l'annuaire (après la réponse, ne bloque pas le rendu)
+  after(() => harvestUsers(tables.map((t) => t.owner)));
+
+  // annuaire id→pseudo des inscrits : DB, complétée par les MJ de la liste
+  // (résolution immédiate d'un MJ inscrit ailleurs) et nos favoris
+  const pseudoById = await resolvePseudos(
+    tables.flatMap((t) => t.registrations.map((r) => r.userId)),
+  );
+  for (const t of tables) {
+    if (!pseudoById.has(t.owner.id)) pseudoById.set(t.owner.id, t.owner.pseudo);
+  }
+  for (const f of favorites) {
+    if (!pseudoById.has(f.id)) pseudoById.set(f.id, f.pseudo);
+  }
 
   if (error) {
     return (
@@ -51,6 +70,8 @@ export default async function TablesPage() {
       tables={tables}
       labelsCatalog={labelsCatalog}
       currentUserId={session.user.id}
+      favoriteIds={favorites.map((f) => f.id)}
+      knownPlayers={[...pseudoById]}
     />
   );
 }

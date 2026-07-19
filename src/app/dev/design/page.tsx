@@ -52,6 +52,8 @@ export default function DesignPreviewPage() {
         tables={tables}
         labelsCatalog={labelsCatalog as CatalogLabel[]}
         currentUserId={17445}
+        favoriteIds={[]}
+        knownPlayers={[]}
       />
     </main>
   );

@@ -41,7 +41,21 @@ test("login → filtrer → fiche → s'inscrire → planning → se désinscrir
     .click();
   await expect(page).toHaveURL(/\/tables\/\d+/);
 
-  // 5. s'inscrire (si possible) puis se désinscrire
+  // 5. « Autour de la table » : les inscrits apparaissent (pseudos ou compteur
+  // dégradé) dès qu'il y a au moins une inscription confirmée
+  const seats = page.getByText(/(\d+) inscrit·e·s/);
+  if (await seats.isVisible().catch(() => false)) {
+    const count = Number(
+      (await seats.textContent())?.match(/(\d+) inscrit·e·s/)?.[1] ?? 0,
+    );
+    if (count > 0) {
+      await expect(
+        page.getByRole("heading", { name: "Autour de la table" }),
+      ).toBeVisible();
+    }
+  }
+
+  // 6. s'inscrire (si possible) puis se désinscrire
   const registerBtn = page.getByRole("button", { name: /^S'inscrire/ });
   if (await registerBtn.isVisible().catch(() => false)) {
     await registerBtn.click();
@@ -49,13 +63,13 @@ test("login → filtrer → fiche → s'inscrire → planning → se désinscrir
       page.getByRole("button", { name: /Se désinscrire/ }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // 6. visible dans le planning
+    // 7. visible dans le planning
     await page.goto("/planning");
     await expect(
       page.getByRole("heading", { name: "Mes Parties" }),
     ).toBeVisible();
 
-    // 7. retour fiche → désinscription
+    // 8. retour fiche → désinscription
     await page.goBack();
     await page.getByRole("button", { name: /Se désinscrire/ }).click();
     await expect(page.getByRole("button", { name: /^S'inscrire/ })).toBeVisible(
