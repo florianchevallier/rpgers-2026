@@ -1,0 +1,31 @@
+# Service Critiquest pour ~/docker/compose/websites/rpgers.paladin.ovh.yml
+# (serveur « lepaladin », conventions de ~/docker/CLAUDE.md — remplace le
+# clone 2025). SESSION_SECRET : générer avec `openssl rand -hex 32` et le
+# renseigner directement sur le serveur, PAS dans le repo.
+services:
+  rpgers:
+    networks:
+      - t3_proxy
+    image: registry.paladin.ovh/rpgers-2026:latest
+    container_name: rpgers
+    restart: unless-stopped
+    environment:
+      TZ: $TZ
+      SESSION_SECRET: "<openssl rand -hex 32>"
+      DATABASE_URL: file:/data/prod.db
+      RPGERS_API_URL: https://rpgers.gobelin-tech.online
+    volumes:
+      - rpgers_2026_data:/data
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.rpgers-rtr.entrypoints=websecure"
+      - "traefik.http.routers.rpgers-rtr.rule=Host(`rpgers.$DOMAINNAME_1`)"
+      # Middlewares
+      - "traefik.http.routers.rpgers-rtr.middlewares=chain-no-auth@file"
+      # HTTP Services
+      - "traefik.http.routers.rpgers-rtr.service=rpgers-svc"
+      - "traefik.http.services.rpgers-svc.loadbalancer.server.port=3000"
+
+volumes:
+  rpgers_2026_data:

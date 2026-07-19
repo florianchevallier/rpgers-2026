@@ -1,0 +1,14 @@
+node_modules
+.next
+src/generated
+.git
+*.db
+*.db-journal
+.env
+.env.local
+tests
+playwright-report
+test-results
+claudedocs
+docs
+*.md
