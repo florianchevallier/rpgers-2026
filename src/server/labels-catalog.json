@@ -1,0 +1,177 @@
+[
+  {
+    "id": 1,
+    "nom": "PEGI : Enfant",
+    "couleur": "#6366f1",
+    "conflictsWith": [14, 5, 6, 7, 25],
+    "isAdult": false
+  },
+  {
+    "id": 3,
+    "nom": "PEGI : Ado",
+    "couleur": "#6366f1",
+    "conflictsWith": [5, 6, 7],
+    "isAdult": false
+  },
+  {
+    "id": 4,
+    "nom": "PEGI : Adulte",
+    "couleur": "#6366f1",
+    "conflictsWith": [],
+    "isAdult": true
+  },
+  {
+    "id": 5,
+    "nom": "Gore",
+    "couleur": "#e01b24",
+    "conflictsWith": [16, 17, 11, 3, 1],
+    "isAdult": true
+  },
+  {
+    "id": 6,
+    "nom": "Violence explicite",
+    "couleur": "#e01b24",
+    "conflictsWith": [17, 16, 11, 3, 1],
+    "isAdult": true
+  },
+  {
+    "id": 7,
+    "nom": "Violence sexuelle",
+    "couleur": "#e01b24",
+    "conflictsWith": [17, 16, 11, 3, 1],
+    "isAdult": true
+  },
+  {
+    "id": 8,
+    "nom": "Western",
+    "couleur": "#f6d32d",
+    "conflictsWith": [22],
+    "isAdult": false
+  },
+  {
+    "id": 9,
+    "nom": "Médiéval",
+    "couleur": "#f6d32d",
+    "conflictsWith": [22],
+    "isAdult": false
+  },
+  {
+    "id": 10,
+    "nom": "Fantastique",
+    "couleur": "#f6d32d",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 11,
+    "nom": "Romantique",
+    "couleur": "#f6d32d",
+    "conflictsWith": [25, 5, 6, 7],
+    "isAdult": false
+  },
+  {
+    "id": 12,
+    "nom": "Science-fiction",
+    "couleur": "#f6d32d",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 13,
+    "nom": "Thriller",
+    "couleur": "#f6d32d",
+    "conflictsWith": [17],
+    "isAdult": false
+  },
+  {
+    "id": 14,
+    "nom": "Angoisse / Horreur",
+    "couleur": "#f6d32d",
+    "conflictsWith": [17, 16, 1],
+    "isAdult": false
+  },
+  {
+    "id": 15,
+    "nom": "Enquête",
+    "couleur": "#f6d32d",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 16,
+    "nom": "Poétique",
+    "couleur": "#f6d32d",
+    "conflictsWith": [25, 14, 5, 6, 7],
+    "isAdult": false
+  },
+  {
+    "id": 17,
+    "nom": "Bienveillant",
+    "couleur": "#f6d32d",
+    "conflictsWith": [25, 14, 5, 6, 7, 13],
+    "isAdult": false
+  },
+  {
+    "id": 18,
+    "nom": "Post-apocalypse",
+    "couleur": "#f6d32d",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 19,
+    "nom": "Full RolePlay",
+    "couleur": "#33d17a",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 20,
+    "nom": "Débutants bienvenus",
+    "couleur": "#33d17a",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 21,
+    "nom": "Humour",
+    "couleur": "#f6d32d",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 22,
+    "nom": "Contemporain",
+    "couleur": "#f6d32d",
+    "conflictsWith": [9, 8],
+    "isAdult": false
+  },
+  {
+    "id": 23,
+    "nom": "MJ débutant",
+    "couleur": "#33d17a",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 24,
+    "nom": "DÃ©fi des MJ du vendredi soir",
+    "couleur": "#ff00ff",
+    "conflictsWith": [],
+    "isAdult": false
+  },
+  {
+    "id": 25,
+    "nom": "Sexisme",
+    "couleur": "#e01b24",
+    "conflictsWith": [17, 1, 16, 11],
+    "isAdult": true
+  },
+  {
+    "id": 26,
+    "nom": "Maîtrisé par l'auteur / l'autrice",
+    "couleur": "#33d17a",
+    "conflictsWith": [],
+    "isAdult": false
+  }
+]

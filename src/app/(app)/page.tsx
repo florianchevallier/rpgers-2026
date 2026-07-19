@@ -1,7 +1,7 @@
 import { CalendarX } from "lucide-react";
-import { TableCard } from "@/components/tables/table-card";
-import { formatDayTitle, groupTablesByDay, roman } from "@/domain/schedule";
+import { TablesExplorer } from "@/components/tables/tables-explorer";
 import { requireSession } from "@/server/auth";
+import { getLabelsCatalog } from "@/server/labels";
 import { getTables, SchemaError } from "@/server/rpgers-client";
 import type { RpgersTable } from "@/server/rpgers-schemas";
 
@@ -31,7 +31,11 @@ async function loadTables(): Promise<{
 }
 
 export default async function TablesPage() {
-  const { tables, error } = await loadTables();
+  const [{ tables, error }, labelsCatalog, session] = await Promise.all([
+    loadTables(),
+    getLabelsCatalog(),
+    requireSession(),
+  ]);
 
   if (error) {
     return (
@@ -42,23 +46,11 @@ export default async function TablesPage() {
     );
   }
 
-  const days = groupTablesByDay(tables);
-
   return (
-    <div className="flex flex-col gap-10">
-      {days.map((day) => (
-        <section key={day.key} aria-labelledby={`day-${day.key}`}>
-          <h2 id={`day-${day.key}`} className="day-heading">
-            Jour {roman(day.dayNumber)} — {formatDayTitle(day.date)}
-          </h2>
-          <div className="mt-1 border-t border-primary/30" aria-hidden />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {day.tables.map((table) => (
-              <TableCard key={table.id} table={table} />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
+    <TablesExplorer
+      tables={tables}
+      labelsCatalog={labelsCatalog}
+      currentUserId={session.user.id}
+    />
   );
 }

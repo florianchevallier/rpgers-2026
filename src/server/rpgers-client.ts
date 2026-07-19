@@ -72,7 +72,7 @@ async function rawFetch<T>(
       cache: "no-store", // la fraîcheur est gérée par notre couche cache/SSE
       signal: AbortSignal.timeout(10_000),
     });
-  } catch (cause) {
+  } catch (_cause) {
     throw new ApiError("API officielle injoignable", 0, path);
   }
 
