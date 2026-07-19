@@ -49,6 +49,15 @@ describe("selectBestGameSource", () => {
       name: "GROG",
     });
   });
+
+  it("ne confond pas un domaine ressemblant au GROG avec le vrai site", () => {
+    expect(
+      selectBestGameSource(["https://fauxlegrog.org/jeu/invente"]),
+    ).toEqual({
+      url: "https://fauxlegrog.org/jeu/invente",
+      name: "fauxlegrog",
+    });
+  });
 });
 
 describe("gameResearchKey", () => {
@@ -101,6 +110,20 @@ describe("deriveEditorialFacts", () => {
     });
   });
 
+  it("conserve l'accessibilité débutant indépendamment du public adulte", () => {
+    const facts = deriveEditorialFacts({
+      maxPlayers: 5,
+      placesLibresPubliques: 2,
+      estPlacesAdminUniquement: false,
+      labels: [
+        { nom: "PEGI : Adulte", isAdult: true },
+        { nom: "Débutants bienvenus", isAdult: false },
+      ],
+    });
+
+    expect(facts.accessibility).toBe("Débutants bienvenus");
+  });
+
   it("recommande déterministement une table enfant accueillant les débutants", () => {
     const facts = deriveEditorialFacts({
       maxPlayers: 4,
@@ -134,5 +157,19 @@ describe("deriveEditorialFacts", () => {
     expect(facts.seats).toBe(
       "Complet côté public — places administrateur uniquement",
     );
+  });
+
+  it("identifie un public adolescent sans inventer une décision pour Milo", () => {
+    const facts = deriveEditorialFacts({
+      maxPlayers: 4,
+      placesLibresPubliques: 2,
+      estPlacesAdminUniquement: false,
+      labels: [{ nom: "PEGI : Ado", isAdult: false }],
+    });
+
+    expect(facts).toMatchObject({
+      audience: "Public adolescent",
+      milo: { verdict: "needs_review", text: null },
+    });
   });
 });

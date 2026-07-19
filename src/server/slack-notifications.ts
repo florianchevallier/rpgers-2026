@@ -274,6 +274,8 @@ async function generateEditorial(
     mj: table.owner.pseudo,
     labels: table.labels.map(({ label }) => label.nom),
     faitsVerifies: facts,
+    profilMilo:
+      "10 ans, déjà expérimenté en JDR (D&D, Mage et Cat's). Dans les cas ambigus, recommander ce qui doit être vérifié avec le MJ.",
     rechercheJeu: research?.summary ?? null,
   });
 

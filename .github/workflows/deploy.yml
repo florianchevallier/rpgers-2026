@@ -71,6 +71,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
 
       # watchtower (wt.paladin.ovh) recrée le conteneur qui tourne sur :latest
       - name: Trigger deployment

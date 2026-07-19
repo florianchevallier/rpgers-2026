@@ -32,6 +32,9 @@ export function Navbar({ pseudo }: Props) {
         >
           <Swords className="size-5" aria-hidden />
           <span className="uppercase">Critiquest</span>
+          <span className="font-sans text-[10px] font-normal tracking-normal text-muted-foreground">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+          </span>
         </Link>
 
         <nav

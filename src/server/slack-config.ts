@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { envOrFile } from "@/server/secret-env";
 
 const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
@@ -23,15 +24,15 @@ export type SlackConfig = z.infer<typeof slackConfigSchema>;
 
 export function getSlackConfig(): SlackConfig {
   return slackConfigSchema.parse({
-    SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN,
+    SLACK_BOT_TOKEN: envOrFile("SLACK_BOT_TOKEN"),
     SLACK_CHANNEL_ID: process.env.SLACK_CHANNEL_ID,
-    SLACK_CRON_SECRET: process.env.SLACK_CRON_SECRET,
+    SLACK_CRON_SECRET: envOrFile("SLACK_CRON_SECRET"),
     RPGERS_BOT_PSEUDO: process.env.RPGERS_BOT_PSEUDO,
-    RPGERS_BOT_PASSWORD: process.env.RPGERS_BOT_PASSWORD,
+    RPGERS_BOT_PASSWORD: envOrFile("RPGERS_BOT_PASSWORD"),
     APP_BASE_URL: process.env.APP_BASE_URL,
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GEMINI_API_KEY: envOrFile("GEMINI_API_KEY"),
     GEMINI_MODEL: process.env.GEMINI_MODEL,
-    PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY,
+    PERPLEXITY_API_KEY: envOrFile("PERPLEXITY_API_KEY"),
     PERPLEXITY_MODEL: process.env.PERPLEXITY_MODEL,
     GAME_RESEARCH_CACHE_DAYS: process.env.GAME_RESEARCH_CACHE_DAYS,
   });

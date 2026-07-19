@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { envOrFile } from "@/server/secret-env";
 
 /**
  * Validation des variables d'environnement au démarrage (fail-fast).
@@ -20,7 +21,7 @@ export function getEnv(): Env {
   if (!cached) {
     cached = envSchema.parse({
       RPGERS_API_URL: process.env.RPGERS_API_URL,
-      SESSION_SECRET: process.env.SESSION_SECRET,
+      SESSION_SECRET: envOrFile("SESSION_SECRET"),
       DATABASE_URL: process.env.DATABASE_URL,
     });
   }

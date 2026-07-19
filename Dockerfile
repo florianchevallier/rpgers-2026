@@ -18,6 +18,8 @@ FROM node:24-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ARG APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
 ENV NEXT_TELEMETRY_DISABLED=1
 # SESSION_SECRET factice : le build évalue env.ts, la vraie valeur vient au run
 RUN npx prisma generate \
@@ -31,11 +33,10 @@ RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nextjs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-# migrations appliquées au démarrage (SQLite dans le volume /data)
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# migrations appliquées au démarrage (SQLite dans le volume /data) via un
+# runner minimal — le CLI prisma est trop lourd pour l'image standalone
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/migrations ./prisma/migrations
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/apply-migrations.js ./scripts/apply-migrations.js
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 USER nextjs

@@ -18,8 +18,10 @@ git tag v0.2.0 && git push origin v0.2.0
 
 La GitHub Action `Deploy` : validate (biome+tsc+vitest) → build & push
 `registry.paladin.ovh/rpgers-2026:{version,latest}` → trigger watchtower →
-le conteneur est recréé sur `:latest`. Les migrations Prisma s'appliquent au
-démarrage (`docker-entrypoint.sh` → `prisma migrate deploy`, idempotent).
+le conteneur est recréé sur `:latest`. Les migrations SQL de
+`prisma/migrations` s'appliquent au démarrage via le runner idempotent de
+`docker-entrypoint.sh`. Le tag est injecté dans l'image comme `APP_VERSION` et
+apparaît sur l'écran de connexion ainsi que dans la barre de navigation.
 
 ## Rollback (< 2 min)
 
@@ -45,9 +47,13 @@ de code reste compatible avec la DB. Ne jamais éditer une migration déployée.
 # 2. sur le serveur :
 ssh lepaladin
 cp <ce repo>/deploy/rpgers.paladin.ovh.yml ~/docker/compose/websites/rpgers.paladin.ovh.yml
-# renseigner SESSION_SECRET (openssl rand -hex 32) dans le fichier
+# créer les fichiers rpgers_2026_* attendus dans ~/docker/secrets (chmod 600)
 cd ~/docker && docker compose pull rpgers && docker compose up -d rpgers --force-recreate
 ```
+
+Le polling Slack est déclenché chaque minute par le crontab de l'hôte. Le job
+appelle `POST /api/slack/check-new` avec le secret conservé dans
+`~/docker/secrets/rpgers_2026_slack_cron_secret`.
 
 ## Vérifier que ça tourne
 
@@ -65,7 +71,7 @@ Parcours de sanité (30 s) : login → liste des tablées → une fiche →
 |---|---|---|
 | Liste vide + message « grimoire doit être mis à jour » | L'officiel a changé son schéma | `docker logs rpgers` (SchemaError + chemin), corriger le schéma Zod, tag + push |
 | 502/timeout sur toutes les pages | API officielle down ou wifi de salle | Rien à faire côté clone : ça revient avec l'officiel |
-| Sessions perdues après redéploiement | `SESSION_SECRET` changé | Ne jamais régénérer le secret du compose serveur |
+| Sessions perdues après redéploiement | `SESSION_SECRET` changé | Ne jamais régénérer `~/docker/secrets/rpgers_2026_session_secret` |
 | DB corrompue / repartir de zéro | SQLite dans le volume | `docker volume rm rpgers_2026_data` (perd favoris/presets/annuaire uniquement) |
 | CI verte mais site pas à jour | watchtower n'a pas recréé | `ssh lepaladin "cd ~/docker && docker compose pull rpgers && docker compose up -d rpgers --force-recreate"` |
 

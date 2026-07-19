@@ -59,7 +59,12 @@ export default function LoginPage() {
         <CardTitle className="font-heading text-2xl tracking-[0.12em] uppercase">
           Critiquest
         </CardTitle>
-        <CardDescription>Le grimoire des tablées — RPGers 2026</CardDescription>
+        <CardDescription>
+          Le grimoire des tablées — RPGers 2026
+          <span className="mt-1 block text-xs">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+          </span>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">

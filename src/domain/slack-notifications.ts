@@ -69,8 +69,9 @@ export function selectBestGameSource(
     try {
       const url = new URL(source);
       if (url.protocol !== "https:") return [];
-      const known = SOURCE_NAMES.find(([domain]) =>
-        url.hostname.toLowerCase().endsWith(domain),
+      const hostname = url.hostname.toLowerCase();
+      const known = SOURCE_NAMES.find(
+        ([domain]) => hostname === domain || hostname.endsWith(`.${domain}`),
       );
       return [
         {
@@ -105,12 +106,17 @@ export function deriveEditorialFacts(
   const seats = input.estPlacesAdminUniquement
     ? "Complet côté public — places administrateur uniquement"
     : `${places} place${places === 1 ? "" : "s"} disponible${places === 1 ? "" : "s"} sur ${input.maxPlayers}`;
+  const welcomesBeginners = normalizedLabels.some((label) =>
+    label.includes("debutants bienvenus"),
+  );
 
   if (contentWarnings.length > 0) {
     return {
       seats,
       audience: "Public adulte",
-      accessibility: "Niveau à confirmer avec le MJ",
+      accessibility: welcomesBeginners
+        ? "Débutants bienvenus"
+        : "Niveau à confirmer avec le MJ",
       contentWarnings,
       milo: {
         verdict: "blocked",
@@ -119,11 +125,11 @@ export function deriveEditorialFacts(
     };
   }
 
-  const welcomesBeginners = normalizedLabels.some((label) =>
-    label.includes("debutants bienvenus"),
-  );
   const isForChildren = normalizedLabels.some((label) =>
     label.includes("pegi : enfant"),
+  );
+  const isForTeenagers = normalizedLabels.some((label) =>
+    label.includes("pegi : ado"),
   );
   if (isForChildren) {
     return {
@@ -144,7 +150,7 @@ export function deriveEditorialFacts(
 
   return {
     seats,
-    audience: "Public non précisé",
+    audience: isForTeenagers ? "Public adolescent" : "Public non précisé",
     accessibility: welcomesBeginners
       ? "Débutants bienvenus"
       : "Niveau à confirmer avec le MJ",

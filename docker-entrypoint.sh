@@ -1,6 +1,6 @@
 #!/bin/sh
 # Applique les migrations Prisma (SQLite dans le volume) puis lance le serveur
-# standalone. `migrate deploy` est idempotent → safe à chaque démarrage.
+# standalone. Le runner est idempotent, donc sûr à chaque démarrage.
 set -e
-./node_modules/.bin/prisma migrate deploy
+node scripts/apply-migrations.js
 exec node server.js

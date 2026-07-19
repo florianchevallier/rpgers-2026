@@ -1,7 +1,7 @@
 # Service Critiquest pour ~/docker/compose/websites/rpgers.paladin.ovh.yml
 # (serveur « lepaladin », conventions de ~/docker/CLAUDE.md — remplace le
-# clone 2025). SESSION_SECRET : générer avec `openssl rand -hex 32` et le
-# renseigner directement sur le serveur, PAS dans le repo.
+# clone 2025). Les secrets sont lus depuis ~/docker/secrets, jamais stockés
+# dans le repo ni injectés directement dans le fichier Compose.
 services:
   rpgers:
     networks:
@@ -9,13 +9,42 @@ services:
     image: registry.paladin.ovh/rpgers-2026:latest
     container_name: rpgers
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       TZ: $TZ
-      SESSION_SECRET: "<openssl rand -hex 32>"
+      SESSION_SECRET_FILE: /run/secrets/rpgers_2026_session_secret
       DATABASE_URL: file:/data/prod.db
       RPGERS_API_URL: https://rpgers.gobelin-tech.online
+      APP_BASE_URL: https://rpgers.paladin.ovh
+      RPGERS_BOT_PSEUDO: LePaladin
+      RPGERS_BOT_PASSWORD_FILE: /run/secrets/rpgers_2026_bot_password
+      SLACK_BOT_TOKEN_FILE: /run/secrets/rpgers_2026_slack_bot_token
+      SLACK_CHANNEL_ID: C0BJD55NU0H
+      SLACK_CRON_SECRET_FILE: /run/secrets/rpgers_2026_slack_cron_secret
+      GEMINI_API_KEY_FILE: /run/secrets/rpgers_2026_gemini_api_key
+      GEMINI_MODEL: gemini-3.5-flash
+      PERPLEXITY_API_KEY_FILE: /run/secrets/rpgers_2026_perplexity_api_key
+      PERPLEXITY_MODEL: sonar-pro
+      GAME_RESEARCH_CACHE_DAYS: 30
     volumes:
       - rpgers_2026_data:/data
+    secrets:
+      - rpgers_2026_session_secret
+      - rpgers_2026_bot_password
+      - rpgers_2026_slack_bot_token
+      - rpgers_2026_slack_cron_secret
+      - rpgers_2026_gemini_api_key
+      - rpgers_2026_perplexity_api_key
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     labels:
       - "traefik.enable=true"
       # HTTP Routers
@@ -29,3 +58,17 @@ services:
 
 volumes:
   rpgers_2026_data:
+
+secrets:
+  rpgers_2026_session_secret:
+    file: $DOCKERDIR/secrets/rpgers_2026_session_secret
+  rpgers_2026_bot_password:
+    file: $DOCKERDIR/secrets/rpgers_2026_bot_password
+  rpgers_2026_slack_bot_token:
+    file: $DOCKERDIR/secrets/rpgers_2026_slack_bot_token
+  rpgers_2026_slack_cron_secret:
+    file: $DOCKERDIR/secrets/rpgers_2026_slack_cron_secret
+  rpgers_2026_gemini_api_key:
+    file: $DOCKERDIR/secrets/rpgers_2026_gemini_api_key
+  rpgers_2026_perplexity_api_key:
+    file: $DOCKERDIR/secrets/rpgers_2026_perplexity_api_key
