@@ -6,7 +6,9 @@ src/generated
 *.db-journal
 .env
 .env.local
+# tests exclus, SAUF les fixtures (importées par la page dev/design)
 tests
+!tests/fixtures
 playwright-report
 test-results
 claudedocs
