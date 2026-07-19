@@ -16,7 +16,7 @@ import {
   formatSlot,
 } from "@/domain/schedule";
 import { requireSession } from "@/server/auth";
-import { ApiError, getTable, getTables } from "@/server/rpgers-client";
+import { getTables } from "@/server/rpgers-client";
 import type { RpgersTable } from "@/server/rpgers-schemas";
 
 export const revalidate = 30;
@@ -28,19 +28,8 @@ async function loadTable(
 ): Promise<{ table: RpgersTable; all: RpgersTable[] } | null> {
   const session = await requireSession();
   const all = await getTables(session.jwt);
-  try {
-    // endpoint détail si disponible (données potentiellement plus riches)
-    const table = await getTable(session.jwt, id);
-    return { table, all };
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      const table = all.find((t) => t.id === id);
-      return table ? { table, all } : null;
-    }
-    const table = all.find((t) => t.id === id);
-    if (!table) throw error;
-    return { table, all };
-  }
+  const table = all.find((t) => t.id === id);
+  return table ? { table, all } : null;
 }
 
 export default async function TableDetailPage({ params }: Props) {

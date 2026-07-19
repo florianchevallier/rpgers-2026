@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { enrichRawTable } from "@/domain/derived-fields";
 import { getEnv } from "@/server/env";
 import {
   apiErrorSchema,
@@ -9,6 +10,7 @@ import {
   notificationSchema,
   type RpgersNotification,
   type RpgersTable,
+  rawTableSchema,
   type Salle,
   type Signalement,
   salleSchema,
@@ -19,6 +21,7 @@ import {
   urgentPlaceSchema,
   userSummarySchema,
 } from "@/server/rpgers-schemas";
+import { extractTableWrappers } from "@/server/rsc-parser";
 
 /** Cookie de session officiel (JWT HS256, 7 j) — détenu UNIQUEMENT ici, côté serveur. */
 export const OFFICIAL_COOKIE_NAME = "rpgers_2026_session";
@@ -176,12 +179,71 @@ export async function registerOfficial(input: {
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
 
+/**
+ * Liste des tablées.
+ *
+ * Source primaire = payload RSC de la home officielle (`GET /`, header RSC:1) :
+ * c'est la SEULE source qui contient `registrations` (indispensable pour
+ * « Mes Parties ») et les champs calculés officiels.
+ * Repli = `GET /api/tables` (JSON brut) + dérivation des champs calculés
+ * côté BFF ; dans ce mode `registrations` est vide (fonctionnement dégradé).
+ */
 export async function getTables(jwt: string): Promise<RpgersTable[]> {
-  return rawFetch("/api/tables", z.array(tableSchema), { jwt });
+  try {
+    return await getTablesFromRsc(jwt);
+  } catch (error) {
+    console.warn("[rpgers] RSC indisponible, repli sur /api/tables :", error);
+    return getTablesFromJsonApi(jwt);
+  }
 }
 
+async function getTablesFromRsc(jwt: string): Promise<RpgersTable[]> {
+  const { RPGERS_API_URL } = getEnv();
+  const res = await fetch(`${RPGERS_API_URL}/`, {
+    headers: { Cookie: `${OFFICIAL_COOKIE_NAME}=${jwt}`, RSC: "1" },
+    cache: "no-store",
+    redirect: "error", // une redirection = session invalide, pas du RSC
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new ApiError(`RSC home ${res.status}`, res.status, "/");
+
+  const text = await res.text();
+  const wrappers = extractTableWrappers(text);
+  if (wrappers.length === 0) {
+    throw new SchemaError("/ (RSC)", "aucune tablée extraite du payload");
+  }
+
+  const tables = wrappers.map((w) => ({
+    ...w.table,
+    ...(w.isRegistered !== undefined ? { isRegistered: w.isRegistered } : {}),
+    ...(w.currentUserId !== undefined
+      ? { currentUserId: w.currentUserId }
+      : {}),
+  }));
+  const parsed = z.array(tableSchema).safeParse(tables);
+  if (!parsed.success) throw new SchemaError("/ (RSC)", parsed.error.issues);
+
+  // dédoublonne par id (le payload peut répéter des références)
+  const byId = new Map<number, RpgersTable>();
+  for (const table of parsed.data) byId.set(table.id, table);
+  return [...byId.values()];
+}
+
+async function getTablesFromJsonApi(jwt: string): Promise<RpgersTable[]> {
+  const raw = await rawFetch("/api/tables", z.array(rawTableSchema), { jwt });
+  return raw.map(enrichRawTable);
+}
+
+/**
+ * Détail tablée — l'officiel n'a PAS d'endpoint JSON détail (405) :
+ * on lit depuis la liste (cachée en amont par le BFF).
+ */
 export async function getTable(jwt: string, id: number): Promise<RpgersTable> {
-  return rawFetch(`/api/tables/${id}`, tableSchema, { jwt });
+  const tables = await getTables(jwt);
+  const table = tables.find((t) => t.id === id);
+  if (!table)
+    throw new ApiError("Tablée introuvable", 404, `/api/tables/${id}`);
+  return table;
 }
 
 export async function createTable(

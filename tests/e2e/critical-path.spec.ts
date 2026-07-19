@@ -27,7 +27,7 @@ test("login → filtrer → fiche → s'inscrire → planning → se désinscrir
   await expect(page).toHaveURL("/");
 
   // 2. la liste affiche des tablées groupées par jour
-  await expect(page.getByRole("heading", { name: /Jour I/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Jour I —/ })).toBeVisible();
 
   // 3. filtre « Places libres »
   await page.getByRole("button", { name: "Places libres" }).click();

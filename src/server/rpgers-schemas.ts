@@ -110,6 +110,22 @@ export const tableSchema = z.object({
 
 export type RpgersTable = z.infer<typeof tableSchema>;
 
+/**
+ * Forme BRUTE de `GET /api/tables` (vérifiée le 19 juil. 2026) : pas de
+ * `registrations`, pas de champs calculés — uniquement `_count.registrations`.
+ * Les champs calculés sont dérivés côté BFF (domain/derived-fields.ts).
+ */
+export const rawTableSchema = tableSchema.omit({
+  registrations: true,
+  confirmed: true,
+  placesLibresTotal: true,
+  placesLibresPubliques: true,
+  estComplete: true,
+  estPlacesAdminUniquement: true,
+});
+
+export type RawRpgersTable = z.infer<typeof rawTableSchema>;
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export const loginResponseSchema = z.object({
