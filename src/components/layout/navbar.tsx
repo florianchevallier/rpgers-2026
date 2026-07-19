@@ -1,11 +1,10 @@
 "use client";
 
-import { Bell, Swords } from "lucide-react";
+import { Swords } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -18,11 +17,10 @@ const LINKS = [
 
 type Props = {
   pseudo: string | null;
-  unreadCount?: number;
 };
 
 /** Barre supérieure — brand + navigation desktop + notifications + thème. */
-export function Navbar({ pseudo, unreadCount = 0 }: Props) {
+export function Navbar({ pseudo }: Props) {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -61,24 +59,7 @@ export function Navbar({ pseudo, unreadCount = 0 }: Props) {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notifications"
-            asChild
-          >
-            <Link href="/notifications" className="relative">
-              <Bell className="size-4" />
-              {unreadCount > 0 && (
-                <Badge
-                  className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full p-0 text-[10px]"
-                  aria-label={`${unreadCount} notifications non lues`}
-                >
-                  {unreadCount}
-                </Badge>
-              )}
-            </Link>
-          </Button>
+          <NotificationBell />
           <ThemeToggle />
           {pseudo && (
             <span className="ml-1 hidden max-w-32 truncate text-sm text-muted-foreground md:inline">
