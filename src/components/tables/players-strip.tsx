@@ -22,7 +22,7 @@ export function PlayerBadge({
       {player.isFavorite && (
         <Heart className="size-3 fill-current" aria-hidden />
       )}
-      {player.pseudo ?? `Aventurier·e #${player.id}`}
+      {player.pseudo ?? `Participant·e #${player.id}`}
       {player.isFavorite && <span className="sr-only"> (favori)</span>}
     </span>
   );

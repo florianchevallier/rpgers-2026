@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Swords } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -66,13 +66,28 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="items-center text-center">
-        <Swords className="size-8 text-primary" aria-hidden />
-        <CardTitle className="font-heading text-2xl uppercase tracking-[0.12em]">
-          Rejoindre la guilde
-        </CardTitle>
-        <CardDescription>Crée ton compte RPGers 2026</CardDescription>
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <div className="mb-3 flex items-center gap-3">
+          <span
+            className="grid size-10 place-items-center rounded-xl bg-primary font-bold text-primary-foreground shadow-sm shadow-primary/25"
+            aria-hidden
+          >
+            R
+          </span>
+          <div>
+            <CardTitle className="text-2xl font-semibold tracking-tight">
+              RPGers
+            </CardTitle>
+            <CardDescription>Programme et planning 2026</CardDescription>
+          </div>
+        </div>
+        <h1 className="text-xl font-semibold tracking-tight">
+          Créer un compte
+        </h1>
+        <CardDescription>
+          Utilise les mêmes informations que sur le site officiel.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -107,7 +122,7 @@ export default function RegisterPage() {
           <div className="flex items-center gap-2">
             <Checkbox id="isAdult" name="isAdult" />
             <Label htmlFor="isAdult" className="font-normal">
-              J&apos;ai 18 ans ou plus (accès aux tablées marquées adultes)
+              J&apos;ai 18 ans ou plus (accès aux parties marquées adultes)
             </Label>
           </div>
           {error && (
@@ -115,7 +130,7 @@ export default function RegisterPage() {
               {error}
             </p>
           )}
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="mt-1 w-full">
             {loading && <Loader2 className="animate-spin" aria-hidden />}
             Créer mon compte
           </Button>

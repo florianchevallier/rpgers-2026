@@ -20,7 +20,7 @@ import {
   formatDayTitle,
   formatSlot,
 } from "@/domain/schedule";
-import { requireSession } from "@/server/auth";
+import { requirePageSession } from "@/server/auth";
 import { listFavorites } from "@/server/favorites";
 import { getTableDetailPseudos, getTables } from "@/server/rpgers-client";
 import type { RpgersTable } from "@/server/rpgers-schemas";
@@ -36,9 +36,9 @@ type Props = { params: Promise<{ id: string }> };
 
 async function loadTable(
   id: number,
+  jwt: string,
 ): Promise<{ table: RpgersTable; all: RpgersTable[] } | null> {
-  const session = await requireSession();
-  const all = await getTables(session.jwt);
+  const all = await getTables(jwt);
   const table = all.find((t) => t.id === id);
   return table ? { table, all } : null;
 }
@@ -47,9 +47,9 @@ export default async function TableDetailPage({ params }: Props) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
 
-  const session = await requireSession();
+  const session = await requirePageSession();
   const [data, favorites, detailPseudos] = await Promise.all([
-    loadTable(id),
+    loadTable(id, session.jwt),
     listFavorites(session.user.id),
     // pseudos des inscrits : rendus en JSX pur (sans userId) sur la page
     // détail officielle — extraction best-effort
@@ -97,11 +97,11 @@ export default async function TableDetailPage({ params }: Props) {
     mine && !isOwner && startsInMs < 3600_000 && startsInMs > 0;
 
   return (
-    <article className="mx-auto max-w-2xl">
+    <article className="mx-auto max-w-3xl">
       <BackToListLink />
 
-      <div className="mt-4 flex items-start justify-between gap-4">
-        <div>
+      <div className="mt-5 flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
               <CalendarClock className="size-4" aria-hidden />
@@ -113,10 +113,10 @@ export default async function TableDetailPage({ params }: Props) {
               {table.salle.nom} — {table.salle.lieu}
             </span>
           </p>
-          <h1 className="mt-2 font-heading text-3xl font-bold tracking-wide">
+          <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
             {table.titre}
           </h1>
-          <p className="mt-1 text-lg italic text-muted-foreground">
+          <p className="mt-1 text-base font-medium text-muted-foreground sm:text-lg">
             {table.systemeJeu}
           </p>
         </div>
@@ -151,11 +151,16 @@ export default async function TableDetailPage({ params }: Props) {
         ))}
       </div>
 
-      <div className="mt-6 whitespace-pre-wrap rounded-xl border border-border bg-card p-5 leading-relaxed">
-        {table.description}
-      </div>
+      <section className="mt-7" aria-labelledby="description-heading">
+        <h2 id="description-heading" className="text-base font-semibold">
+          Description
+        </h2>
+        <div className="mt-2 whitespace-pre-wrap rounded-xl border border-border bg-card p-5 leading-relaxed text-foreground/90">
+          {table.description}
+        </div>
+      </section>
 
-      <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground">
+      <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-6">
         <span className="inline-flex items-center gap-1.5">
           <User className="size-4" aria-hidden />
           MJ : <strong className="text-foreground">{table.owner.pseudo}</strong>
@@ -169,16 +174,17 @@ export default async function TableDetailPage({ params }: Props) {
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Users className="size-4" aria-hidden />
-          {table.confirmed} inscrit·e·s · {table.placesLibresPubliques} places
-          publiques libres
+          {table.confirmed} inscrit·e{table.confirmed > 1 ? "·s" : ""} ·{" "}
+          {table.placesLibresPubliques} place
+          {table.placesLibresPubliques > 1 ? "s" : ""} publique
+          {table.placesLibresPubliques > 1 ? "s" : ""} libre
+          {table.placesLibresPubliques > 1 ? "s" : ""}
         </span>
       </div>
 
       {players.length > 0 && (
         <section aria-label="Autour de la table" className="mt-4">
-          <h2 className="font-heading text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Autour de la table
-          </h2>
+          <h2 className="text-sm font-semibold">Participants</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1.5">
             {players
               .filter((p) => p.pseudo !== null)
@@ -204,7 +210,7 @@ export default async function TableDetailPage({ params }: Props) {
             {stillUnknownCount > 0 && (
               <span className="text-xs text-muted-foreground">
                 {stillUnknownCount === players.length
-                  ? `${stillUnknownCount} aventurier·e·s au pseudo inconnu du grimoire`
+                  ? `${stillUnknownCount} participant·e·s sans pseudo disponible`
                   : `+${stillUnknownCount} au pseudo inconnu`}
               </span>
             )}
@@ -215,6 +221,7 @@ export default async function TableDetailPage({ params }: Props) {
       {!isOwner && (
         <div className="mt-8">
           <RegisterButton
+            key={mine ? "registered" : "available"}
             tableId={table.id}
             isRegistered={mine}
             isFull={table.placesLibresPubliques <= 0}
@@ -231,7 +238,7 @@ export default async function TableDetailPage({ params }: Props) {
       )}
       {isOwner && (
         <p className="mt-8 text-sm text-muted-foreground">
-          Tu es le·la MJ de cette tablée.
+          Tu es le ou la MJ de cette partie.
         </p>
       )}
     </article>

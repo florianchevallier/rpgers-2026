@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollText } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -17,13 +17,13 @@ export default function AppError({
 }) {
   return (
     <div className="grid place-items-center py-20 text-center">
-      <ScrollText className="size-10 text-muted-foreground" aria-hidden />
-      <h2 className="mt-4 font-heading text-xl font-semibold">
-        Le grimoire s&apos;est refermé
+      <CircleAlert className="size-10 text-muted-foreground" aria-hidden />
+      <h2 className="mt-4 text-xl font-semibold">
+        Impossible de charger la page
       </h2>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
-        Le serveur officiel n&apos;a pas répondu comme prévu. Réessaie — si ça
-        persiste, préviens l&apos;orga du clone.
+        Le serveur officiel n&apos;a pas répondu comme prévu. Réessaie et, si le
+        problème persiste, préviens l&apos;équipe technique.
       </p>
       {error.digest && (
         <p className="mt-1 text-xs text-muted-foreground/60">

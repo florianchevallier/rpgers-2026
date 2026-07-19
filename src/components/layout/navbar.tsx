@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleUser, Swords } from "lucide-react";
+import { CircleHelp, CircleUser, Flag } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NotificationBell } from "@/components/layout/notification-bell";
@@ -9,36 +9,35 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/", label: "Tablées" },
-  { href: "/planning", label: "Mes Parties" },
+  { href: "/", label: "Parties" },
+  { href: "/planning", label: "Mon planning" },
   { href: "/tables/new", label: "Proposer" },
-  { href: "/signalement", label: "Signaler" },
-  { href: "/faq", label: "FAQ" },
 ] as const;
 
 type Props = {
   pseudo: string | null;
 };
 
-/** Barre supérieure — brand + navigation desktop + notifications + thème. */
 export function Navbar({ pseudo }: Props) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/92 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
+      <div className="mx-auto flex h-15 max-w-6xl items-center gap-2 px-4 sm:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 font-heading text-lg font-bold tracking-[0.12em] text-primary"
+          className="flex min-w-0 items-center gap-2.5 rounded-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Swords className="size-5" aria-hidden />
-          <span className="uppercase">Critiquest</span>
-          <span className="font-sans text-[10px] font-normal tracking-normal text-muted-foreground">
-            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+          <span
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-primary/20"
+            aria-hidden
+          >
+            R
           </span>
+          <span className="text-lg">RPGers</span>
         </Link>
 
         <nav
-          className="ml-6 hidden items-center gap-1 sm:flex"
+          className="ml-5 hidden items-center gap-1 sm:flex"
           aria-label="Navigation principale"
         >
           {LINKS.map(({ href, label }) => {
@@ -50,10 +49,10 @@ export function Navbar({ pseudo }: Props) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-accent font-semibold text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {label}
@@ -63,21 +62,37 @@ export function Navbar({ pseudo }: Props) {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="hidden md:flex"
+          >
+            <Link href="/signalement" aria-label="Signaler un problème">
+              <Flag className="size-4" aria-hidden />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="hidden md:flex"
+          >
+            <Link href="/faq" aria-label="Aide">
+              <CircleHelp className="size-4" aria-hidden />
+            </Link>
+          </Button>
           <NotificationBell />
           <ThemeToggle />
           {pseudo && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="gap-1.5 pl-2 pr-2.5"
-            >
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 px-2">
               <Link
                 href="/profile"
+                aria-label={`Profil de ${pseudo}`}
                 aria-current={pathname === "/profile" ? "page" : undefined}
               >
                 <CircleUser className="size-4" aria-hidden />
-                <span className="hidden max-w-32 truncate md:inline">
+                <span className="hidden max-w-28 truncate lg:inline">
                   {pseudo}
                 </span>
               </Link>

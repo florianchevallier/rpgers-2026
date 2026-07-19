@@ -4,6 +4,7 @@ import { Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useOnlineStatus } from "@/lib/connectivity";
 
 type UrgentPlace = {
   id: number;
@@ -13,7 +14,7 @@ type UrgentPlace = {
 };
 
 /** Évènement CustomEvent partagé avec la cloche de notifications. */
-export const NOTIF_EVENT = "critiquest:notifications";
+export const NOTIF_EVENT = "rpgers:notifications";
 
 /**
  * Centre temps réel : ouvre le flux SSE, affiche la bannière « place urgente »
@@ -21,21 +22,33 @@ export const NOTIF_EVENT = "critiquest:notifications";
  */
 export function RealtimeCenter() {
   const router = useRouter();
+  const online = useOnlineStatus();
+  const [visible, setVisible] = useState(true);
   const [urgent, setUrgent] = useState<UrgentPlace[]>([]);
   const [answered, setAnswered] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    const handleVisibility = () =>
+      setVisible(document.visibilityState === "visible");
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!online || !visible) return;
     const source = new EventSource("/api/events");
 
-    source.addEventListener("urgent", (event) => {
+    const handleUrgent = (event: Event) => {
       try {
         setUrgent(JSON.parse((event as MessageEvent).data) as UrgentPlace[]);
       } catch {
         // payload inattendu → on ignore ce tick
       }
-    });
+    };
 
-    source.addEventListener("notifications", (event) => {
+    const handleNotifications = (event: Event) => {
       try {
         const data = JSON.parse((event as MessageEvent).data) as {
           unread: number;
@@ -44,12 +57,24 @@ export function RealtimeCenter() {
       } catch {
         // idem
       }
-    });
+    };
 
-    return () => source.close();
-  }, []);
+    source.addEventListener("urgent", handleUrgent);
+    source.addEventListener("notifications", handleNotifications);
+
+    return () => {
+      source.removeEventListener("urgent", handleUrgent);
+      source.removeEventListener("notifications", handleNotifications);
+      source.close();
+    };
+  }, [online, visible]);
+
+  useEffect(() => {
+    if (!online) setUrgent([]);
+  }, [online]);
 
   async function respond(place: UrgentPlace, reponse: "yes" | "no") {
+    if (!online) return;
     setAnswered((prev) => new Set(prev).add(place.id));
     await fetch("/api/urgent", {
       method: "POST",
@@ -81,15 +106,20 @@ export function RealtimeCenter() {
             {place.table?.titre
               ? `« ${place.table.titre} » a une place qui vient de se libérer.`
               : (place.message ??
-                "Une tablée a une place qui vient de se libérer.")}
+                "Une partie a une place qui vient de se libérer.")}
           </p>
           <div className="flex gap-1.5">
-            <Button size="sm" onClick={() => respond(place, "yes")}>
+            <Button
+              size="sm"
+              disabled={!online}
+              onClick={() => respond(place, "yes")}
+            >
               Je la prends !
             </Button>
             <Button
               size="sm"
               variant="ghost"
+              disabled={!online}
               onClick={() => respond(place, "no")}
             >
               Passer

@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { enrichRawTable } from "@/domain/derived-fields";
+import { cachedSWR, invalidate } from "@/server/cache";
 import { getEnv } from "@/server/env";
 import {
   apiErrorSchema,
@@ -192,12 +194,30 @@ export async function registerOfficial(input: {
  * côté BFF ; dans ce mode `registrations` est vide (fonctionnement dégradé).
  */
 export async function getTables(jwt: string): Promise<RpgersTable[]> {
+  return cachedSWR(tableCacheKey(jwt), 15_000, 30 * 60_000, () =>
+    fetchTablesFresh(jwt),
+  );
+}
+
+async function fetchTablesFresh(jwt: string): Promise<RpgersTable[]> {
   try {
     return await getTablesFromRsc(jwt);
   } catch (error) {
     console.warn("[rpgers] RSC indisponible, repli sur /api/tables :", error);
     return getTablesFromJsonApi(jwt);
   }
+}
+
+function tableCacheKey(jwt: string): string {
+  const sessionKey = createHash("sha256")
+    .update(jwt)
+    .digest("base64url")
+    .slice(0, 16);
+  return `tables:${sessionKey}`;
+}
+
+export function invalidateTables(jwt: string): void {
+  invalidate(tableCacheKey(jwt));
 }
 
 async function getTablesFromRsc(jwt: string): Promise<RpgersTable[]> {

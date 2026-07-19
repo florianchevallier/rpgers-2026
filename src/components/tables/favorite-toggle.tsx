@@ -2,6 +2,7 @@
 
 import { Heart } from "lucide-react";
 import { useState } from "react";
+import { useOnlineStatus } from "@/lib/connectivity";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,8 +21,10 @@ export function FavoriteToggle({
 }: Props) {
   const [favorite, setFavorite] = useState(initialFavorite);
   const [pending, setPending] = useState(false);
+  const online = useOnlineStatus();
 
   async function toggle() {
+    if (!online) return;
     setPending(true);
     const next = !favorite;
     setFavorite(next); // optimiste
@@ -43,7 +46,8 @@ export function FavoriteToggle({
     <button
       type="button"
       onClick={toggle}
-      disabled={pending}
+      disabled={pending || !online}
+      title={online ? undefined : "Connexion requise pour modifier les favoris"}
       aria-pressed={favorite}
       aria-label={
         favorite
@@ -51,7 +55,7 @@ export function FavoriteToggle({
           : `Ajouter ${pseudo} aux favoris`
       }
       className={cn(
-        "inline-flex items-center justify-center rounded-full p-1 text-muted-foreground transition-colors hover:text-primary disabled:opacity-60",
+        "inline-flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-60",
         favorite && "text-primary",
         className,
       )}

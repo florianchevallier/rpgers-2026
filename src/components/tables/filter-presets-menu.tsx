@@ -1,7 +1,7 @@
 "use client";
 
 import { BookMarked, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useOnlineStatus } from "@/lib/connectivity";
 import type { FilterParams } from "@/lib/filter-params";
 
 type Preset = { id: number; name: string; params: FilterParams };
@@ -20,22 +21,35 @@ type Props = {
 
 /** Sauvegarder / appliquer / supprimer des combinaisons de filtres nommées (notre DB). */
 export function FilterPresetsMenu({ currentParams, onApply }: Props) {
+  const online = useOnlineStatus();
   const [open, setOpen] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    fetch("/api/filter-presets")
-      .then((r) => r.json())
-      .then((data: { presets?: Preset[] }) => setPresets(data.presets ?? []))
-      .catch(() => setPresets([]));
-  }, [open]);
+  async function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) return;
+    const cached = window.localStorage.getItem("rpgers:filter-presets");
+    if (cached) {
+      try {
+        setPresets(JSON.parse(cached) as Preset[]);
+      } catch {
+        window.localStorage.removeItem("rpgers:filter-presets");
+      }
+    }
+    if (!online) return;
+    const response = await fetch("/api/filter-presets").catch(() => null);
+    if (!response?.ok) return;
+    const data = (await response.json()) as { presets?: Preset[] };
+    const next = data.presets ?? [];
+    setPresets(next);
+    window.localStorage.setItem("rpgers:filter-presets", JSON.stringify(next));
+  }
 
   async function save() {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || !online) return;
     setSaving(true);
     try {
       await fetch("/api/filter-presets", {
@@ -46,13 +60,19 @@ export function FilterPresetsMenu({ currentParams, onApply }: Props) {
       setName("");
       const res = await fetch("/api/filter-presets");
       const data = (await res.json()) as { presets?: Preset[] };
-      setPresets(data.presets ?? []);
+      const next = data.presets ?? [];
+      setPresets(next);
+      window.localStorage.setItem(
+        "rpgers:filter-presets",
+        JSON.stringify(next),
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(id: number) {
+    if (!online) return;
     setPresets((prev) => prev.filter((p) => p.id !== id));
     await fetch("/api/filter-presets", {
       method: "DELETE",
@@ -62,7 +82,7 @@ export function FilterPresetsMenu({ currentParams, onApply }: Props) {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
           <BookMarked className="size-3.5" aria-hidden />
@@ -96,6 +116,7 @@ export function FilterPresetsMenu({ currentParams, onApply }: Props) {
                     <button
                       type="button"
                       onClick={() => remove(preset.id)}
+                      disabled={!online}
                       aria-label={`Supprimer le preset ${preset.name}`}
                       className="rounded p-1.5 text-muted-foreground hover:text-destructive"
                     >
@@ -110,13 +131,18 @@ export function FilterPresetsMenu({ currentParams, onApply }: Props) {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={!online}
               placeholder="Nom du preset…"
               className="h-8 text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter") save();
               }}
             />
-            <Button size="sm" disabled={saving || !name.trim()} onClick={save}>
+            <Button
+              size="sm"
+              disabled={saving || !name.trim() || !online}
+              onClick={save}
+            >
               Sauver
             </Button>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Swords } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -53,17 +53,25 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="items-center text-center">
-        <Swords className="size-8 text-primary" aria-hidden />
-        <CardTitle className="font-heading text-2xl tracking-[0.12em] uppercase">
-          Critiquest
-        </CardTitle>
-        <CardDescription>
-          Le grimoire des tablées — RPGers 2026
-          <span className="mt-1 block text-xs">
-            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <div className="mb-3 flex items-center gap-3">
+          <span
+            className="grid size-10 place-items-center rounded-xl bg-primary font-bold text-primary-foreground shadow-sm shadow-primary/25"
+            aria-hidden
+          >
+            R
           </span>
+          <div>
+            <CardTitle className="text-2xl font-semibold tracking-tight">
+              RPGers
+            </CardTitle>
+            <CardDescription>Programme et planning 2026</CardDescription>
+          </div>
+        </div>
+        <h1 className="text-xl font-semibold tracking-tight">Connexion</h1>
+        <CardDescription>
+          Retrouve les parties et gère tes inscriptions.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -93,9 +101,9 @@ export default function LoginPage() {
               {error}
             </p>
           )}
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="mt-1 w-full">
             {loading && <Loader2 className="animate-spin" aria-hidden />}
-            Entrer dans la taverne
+            Se connecter
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Pas encore de compte ?{" "}
@@ -103,8 +111,11 @@ export default function LoginPage() {
               href="/register"
               className="font-semibold text-primary hover:underline"
             >
-              S&apos;enregistrer
+              Créer un compte
             </Link>
+          </p>
+          <p className="text-center text-[11px] text-muted-foreground/70">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
           </p>
         </form>
       </CardContent>

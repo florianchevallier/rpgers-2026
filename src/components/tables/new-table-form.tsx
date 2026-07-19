@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { type CatalogLabel, disabledLabelIds } from "@/domain/labels";
-import { roman } from "@/domain/schedule";
+import { useOnlineStatus } from "@/lib/connectivity";
 import { cn } from "@/lib/utils";
 import type { UserSummary } from "@/server/rpgers-schemas";
 
@@ -22,6 +22,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h
 
 export function NewTableForm({ labels, days, isAdult }: Props) {
   const router = useRouter();
+  const online = useOnlineStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +51,7 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
 
   async function searchGuest(q: string) {
     setGuestQuery(q);
+    if (!online) return setGuestResults([]);
     if (q.length < 2) return setGuestResults([]);
     const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
     if (res.ok) {
@@ -62,6 +64,10 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
 
   async function addGuest(user: UserSummary) {
     if (!slot) return;
+    if (!online) {
+      setError("Connexion requise pour vérifier la disponibilité de l’invité.");
+      return;
+    }
     // check-overlap : avertit si l'invité a déjà un créneau qui chevauche
     const res = await fetch("/api/users/check-overlap", {
       method: "POST",
@@ -88,6 +94,10 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!slot) return;
+    if (!online) {
+      setError("Connexion requise pour proposer une partie.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -123,6 +133,65 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-5">
+      <BasicFields />
+      <ScheduleFields
+        days={days}
+        day={day}
+        startHour={startHour}
+        duration={duration}
+        onDayChange={setDay}
+        onStartHourChange={setStartHour}
+        onDurationChange={setDuration}
+      />
+      <LabelsField
+        labels={visibleLabels}
+        selectedIds={labelIds}
+        disabledIds={disabledLabels}
+        onChange={setLabelIds}
+      />
+      <GuestsField
+        online={online}
+        guests={guests}
+        query={guestQuery}
+        results={guestResults}
+        onQueryChange={searchGuest}
+        onAdd={addGuest}
+        onRemove={(id) => setGuests(guests.filter((guest) => guest.id !== id))}
+      />
+
+      {error && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 text-sm text-destructive"
+        >
+          <TriangleAlert className="size-4 shrink-0" aria-hidden />
+          {error}
+        </p>
+      )}
+
+      {!online && (
+        <p className="text-sm text-muted-foreground">
+          Vous pouvez préparer la proposition hors ligne, puis l’envoyer une
+          fois reconnecté·e.
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        size="lg"
+        disabled={loading || !online}
+        className="mt-2"
+      >
+        {loading && <Loader2 className="animate-spin" aria-hidden />}
+        Proposer la partie
+      </Button>
+    </form>
+  );
+}
+
+function BasicFields() {
+  return (
+    <>
       <div className="grid gap-1.5">
         <Label htmlFor="titre">Titre de la partie *</Label>
         <Input
@@ -130,10 +199,9 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           name="titre"
           required
           maxLength={100}
-          placeholder="Ex : La crypte de l'enchanteur"
+          placeholder="Ex : La Dernière Station"
         />
       </div>
-
       <div className="grid gap-1.5">
         <Label htmlFor="systemeJeu">Système de jeu *</Label>
         <Input
@@ -144,7 +212,6 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           placeholder="Ex : D&D 5e, Call of Cthulhu, homebrew…"
         />
       </div>
-
       <div className="grid gap-1.5">
         <Label htmlFor="description">Description *</Label>
         <Textarea
@@ -156,19 +223,41 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           placeholder="Accroche, ton, prérequis éventuels…"
         />
       </div>
+    </>
+  );
+}
 
+function ScheduleFields({
+  days,
+  day,
+  startHour,
+  duration,
+  onDayChange,
+  onStartHourChange,
+  onDurationChange,
+}: {
+  days: Props["days"];
+  day: string;
+  startHour: number;
+  duration: number;
+  onDayChange: (day: string) => void;
+  onStartHourChange: (hour: number) => void;
+  onDurationChange: (duration: number) => void;
+}) {
+  return (
+    <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="grid gap-1.5">
           <Label htmlFor="day">Jour</Label>
           <select
             id="day"
             value={day}
-            onChange={(e) => setDay(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            onChange={(event) => onDayChange(event.target.value)}
+            className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
           >
-            {days.map((d) => (
-              <option key={d.key} value={d.key}>
-                Jour {roman(d.dayNumber)}
+            {days.map((option) => (
+              <option key={option.key} value={option.key}>
+                Jour {option.dayNumber}
               </option>
             ))}
           </select>
@@ -178,12 +267,12 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           <select
             id="start"
             value={startHour}
-            onChange={(e) => setStartHour(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            onChange={(event) => onStartHourChange(Number(event.target.value))}
+            className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
           >
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {h}h00
+            {HOURS.map((hour) => (
+              <option key={hour} value={hour}>
+                {hour}h00
               </option>
             ))}
           </select>
@@ -193,12 +282,12 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           <select
             id="duration"
             value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            onChange={(event) => onDurationChange(Number(event.target.value))}
+            className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
           >
-            {[1, 2, 3, 4, 5, 6].map((d) => (
-              <option key={d} value={d}>
-                {d}h
+            {[1, 2, 3, 4, 5, 6].map((hours) => (
+              <option key={hours} value={hours}>
+                {hours}h
               </option>
             ))}
           </select>
@@ -216,109 +305,129 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
           />
         </div>
       </div>
-
       <p className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-        La salle est attribuée par l&apos;orga — elle apparaîtra sur ta tablée
+        La salle est attribuée par l&apos;orga — elle apparaîtra sur ta partie
         une fois validée.
       </p>
+    </>
+  );
+}
 
-      <fieldset>
-        <legend className="text-sm font-medium">
-          Labels (les incompatibles sont grisés)
-        </legend>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {visibleLabels.map((label) => {
-            const selected = labelIds.includes(label.id);
-            const disabled = !selected && disabledLabels.has(label.id);
-            return (
-              <button
-                key={label.id}
-                type="button"
-                disabled={disabled}
-                aria-pressed={selected}
-                onClick={() =>
-                  setLabelIds(
-                    selected
-                      ? labelIds.filter((id) => id !== label.id)
-                      : [...labelIds, label.id],
-                  )
-                }
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+function LabelsField({
+  labels,
+  selectedIds,
+  disabledIds,
+  onChange,
+}: {
+  labels: CatalogLabel[];
+  selectedIds: number[];
+  disabledIds: ReadonlySet<number>;
+  onChange: (ids: number[]) => void;
+}) {
+  const selectedIdSet = new Set(selectedIds);
+  return (
+    <fieldset>
+      <legend className="text-sm font-medium">
+        Labels (les incompatibles sont grisés)
+      </legend>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {labels.map((label) => {
+          const selected = selectedIdSet.has(label.id);
+          const disabled = !selected && disabledIds.has(label.id);
+          return (
+            <button
+              key={label.id}
+              type="button"
+              disabled={disabled}
+              aria-pressed={selected}
+              onClick={() =>
+                onChange(
                   selected
-                    ? "border-primary bg-primary/15 font-semibold text-primary"
-                    : "border-border",
-                  disabled && "cursor-not-allowed opacity-35",
-                )}
-              >
-                <span
-                  className="size-2 rounded-full ring-1 ring-black/20"
-                  style={{ backgroundColor: label.couleur }}
-                  aria-hidden
-                />
-                {label.nom}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <div className="grid gap-1.5">
-        <Label htmlFor="guest">Pré-inscrire des amis (optionnel)</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {guests.map((g) => (
-            <span
-              key={g.id}
-              className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs"
+                    ? selectedIds.filter((id) => id !== label.id)
+                    : [...selectedIds, label.id],
+                )
+              }
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                selected
+                  ? "border-primary bg-primary/15 font-semibold text-primary"
+                  : "border-border",
+                disabled && "cursor-not-allowed opacity-35",
+              )}
             >
-              {g.pseudo}
+              <span
+                className="size-2 rounded-full ring-1 ring-black/20"
+                style={{ backgroundColor: label.couleur }}
+                aria-hidden
+              />
+              {label.nom}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function GuestsField({
+  online,
+  guests,
+  query,
+  results,
+  onQueryChange,
+  onAdd,
+  onRemove,
+}: {
+  online: boolean;
+  guests: UserSummary[];
+  query: string;
+  results: UserSummary[];
+  onQueryChange: (query: string) => void;
+  onAdd: (user: UserSummary) => void;
+  onRemove: (id: number) => void;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="guest">Pré-inscrire des amis (optionnel)</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {guests.map((guest) => (
+          <span
+            key={guest.id}
+            className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs"
+          >
+            {guest.pseudo}
+            <button
+              type="button"
+              aria-label={`Retirer ${guest.pseudo}`}
+              onClick={() => onRemove(guest.id)}
+            >
+              <X className="size-3" aria-hidden />
+            </button>
+          </span>
+        ))}
+      </div>
+      <Input
+        id="guest"
+        value={query}
+        disabled={!online}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder="Pseudo à inviter…"
+      />
+      {results.length > 0 && (
+        <ul className="rounded-md border border-border bg-popover">
+          {results.slice(0, 5).map((user) => (
+            <li key={user.id}>
               <button
                 type="button"
-                aria-label={`Retirer ${g.pseudo}`}
-                onClick={() => setGuests(guests.filter((x) => x.id !== g.id))}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                onClick={() => onAdd(user)}
               >
-                <X className="size-3" />
+                {user.pseudo}
               </button>
-            </span>
+            </li>
           ))}
-        </div>
-        <Input
-          id="guest"
-          value={guestQuery}
-          onChange={(e) => searchGuest(e.target.value)}
-          placeholder="Pseudo à inviter…"
-        />
-        {guestResults.length > 0 && (
-          <ul className="rounded-md border border-border bg-popover">
-            {guestResults.slice(0, 5).map((u) => (
-              <li key={u.id}>
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                  onClick={() => addGuest(u)}
-                >
-                  {u.pseudo}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {error && (
-        <p
-          role="alert"
-          className="flex items-center gap-2 text-sm text-destructive"
-        >
-          <TriangleAlert className="size-4 shrink-0" aria-hidden />
-          {error}
-        </p>
+        </ul>
       )}
-
-      <Button type="submit" size="lg" disabled={loading} className="mt-2">
-        {loading && <Loader2 className="animate-spin" aria-hidden />}
-        Proposer la tablée
-      </Button>
-    </form>
+    </div>
   );
 }

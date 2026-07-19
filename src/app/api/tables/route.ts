@@ -3,9 +3,13 @@ import { z } from "zod";
 import { findLabelConflicts } from "@/domain/labels";
 import { findForbiddenWord } from "@/domain/profanity";
 import { requireSession } from "@/server/auth";
-import { cached } from "@/server/cache";
 import { getLabelsCatalog } from "@/server/labels";
-import { ApiError, createTable, getTables } from "@/server/rpgers-client";
+import {
+  ApiError,
+  createTable,
+  getTables,
+  invalidateTables,
+} from "@/server/rpgers-client";
 
 /**
  * GET — liste des tablées (proxy BFF).
@@ -17,9 +21,7 @@ export async function GET() {
   if (!session)
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-  const tables = await cached("tables:all", 30_000, () =>
-    getTables(session.jwt),
-  );
+  const tables = await getTables(session.jwt);
   return NextResponse.json({ tables });
 }
 
@@ -117,6 +119,7 @@ export async function POST(request: Request) {
       labelIds: input.labelIds,
       ...(ownerId !== undefined ? { ownerId } : {}),
     });
+    invalidateTables(session.jwt);
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {
     if (error instanceof ApiError) {

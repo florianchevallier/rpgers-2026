@@ -1,14 +1,16 @@
-import { Clock, Crown, Dices, Heart } from "lucide-react";
+import { CircleHelp, Clock, Crown, Dices, Flag, Heart } from "lucide-react";
+import Link from "next/link";
 import { FavoritesManager } from "@/components/profile/favorites-manager";
+import { LogoutButton } from "@/components/profile/logout-button";
 import { computePlayerStats } from "@/domain/stats";
-import { requireSession } from "@/server/auth";
+import { requirePageSession } from "@/server/auth";
 import { listFavorites } from "@/server/favorites";
 import { getTables } from "@/server/rpgers-client";
 
 export const revalidate = 30;
 
 export default async function ProfilePage() {
-  const session = await requireSession();
+  const session = await requirePageSession();
   const [tables, favorites] = await Promise.all([
     getTables(session.jwt),
     listFavorites(session.user.id),
@@ -19,12 +21,11 @@ export default async function ProfilePage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="font-heading text-2xl font-bold tracking-wide">
+        <h1 className="text-3xl font-semibold tracking-tight">
           {session.user.pseudo}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ton profil sur la convention — statistiques et favoris (notre couche,
-          absente de l&apos;officiel).
+          Tes statistiques et tes joueurs favoris.
         </p>
       </header>
 
@@ -77,8 +78,8 @@ export default async function ProfilePage() {
         </h2>
         <div className="mt-1 border-t border-primary/30" aria-hidden />
         <p className="mt-2 text-xs text-muted-foreground">
-          Filtre &laquo; Mes favoris &raquo; dans la liste des tablées : ne
-          montre que les parties où un favori est MJ ou inscrit.
+          Le filtre « Mes favoris » affiche les parties où l&apos;un de tes
+          favoris est MJ ou participant.
         </p>
         <div className="mt-4">
           <FavoritesManager
@@ -87,6 +88,27 @@ export default async function ProfilePage() {
           />
         </div>
       </section>
+
+      <nav aria-label="Aide et support" className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/faq"
+          className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent"
+        >
+          <CircleHelp className="size-5 text-primary" aria-hidden />
+          <span className="font-medium">Aide et questions fréquentes</span>
+        </Link>
+        <Link
+          href="/signalement"
+          className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent"
+        >
+          <Flag className="size-5 text-primary" aria-hidden />
+          <span className="font-medium">Signaler un problème</span>
+        </Link>
+      </nav>
+
+      <div className="flex justify-end border-t border-border pt-6">
+        <LogoutButton />
+      </div>
     </div>
   );
 }
@@ -103,7 +125,7 @@ function StatCard({
   return (
     <div className="rounded-xl border border-border bg-card p-3.5 text-center">
       <Icon className="mx-auto size-5 text-primary" aria-hidden />
-      <p className="mt-1.5 font-heading text-xl font-bold">{value}</p>
+      <p className="mt-1.5 text-xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );

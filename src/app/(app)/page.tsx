@@ -1,7 +1,8 @@
 import { CalendarX } from "lucide-react";
 import { after } from "next/server";
 import { TablesExplorer } from "@/components/tables/tables-explorer";
-import { requireSession } from "@/server/auth";
+import { toTableListItem } from "@/domain/table-list";
+import { requirePageSession } from "@/server/auth";
 import { listFavorites } from "@/server/favorites";
 import { getLabelsCatalog } from "@/server/labels";
 import { getTables, SchemaError } from "@/server/rpgers-client";
@@ -10,19 +11,18 @@ import { harvestUsers, resolvePseudos } from "@/server/user-directory";
 
 export const revalidate = 30;
 
-async function loadTables(): Promise<{
+async function loadTables(jwt: string): Promise<{
   tables: RpgersTable[];
   error: string | null;
 }> {
-  const session = await requireSession();
   try {
-    return { tables: await getTables(session.jwt), error: null };
+    return { tables: await getTables(jwt), error: null };
   } catch (error) {
     if (error instanceof SchemaError) {
       return {
         tables: [],
         error:
-          "L'API officielle a changé de format — le grimoire doit être mis à jour. Préviens l'orga du clone !",
+          "Le format de l’API officielle a changé. Préviens l’équipe technique.",
       };
     }
     return {
@@ -34,9 +34,9 @@ async function loadTables(): Promise<{
 }
 
 export default async function TablesPage() {
-  const session = await requireSession();
+  const session = await requirePageSession();
   const [{ tables, error }, labelsCatalog, favorites] = await Promise.all([
-    loadTables(),
+    loadTables(session.jwt),
     getLabelsCatalog(),
     listFavorites(session.user.id),
   ]);
@@ -67,7 +67,7 @@ export default async function TablesPage() {
 
   return (
     <TablesExplorer
-      tables={tables}
+      tables={tables.map(toTableListItem)}
       labelsCatalog={labelsCatalog}
       currentUserId={session.user.id}
       favoriteIds={favorites.map((f) => f.id)}

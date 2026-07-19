@@ -18,19 +18,29 @@ test.skip(
 
 test("login → filtrer → fiche → s'inscrire → planning → se désinscrire", async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "desktop",
+    "Le parcours modifie une vraie inscription : une seule exécution à la fois.",
+  );
+  if (!pseudo || !password) {
+    throw new Error("Identifiants RPGers manquants");
+  }
+
   // 1. login
   await page.goto("/login");
-  await page.getByLabel("Pseudo").fill(pseudo!);
-  await page.getByLabel("Mot de passe").fill(password!);
-  await page.getByRole("button", { name: /Entrer dans la taverne/ }).click();
+  await page.getByLabel("Pseudo").fill(pseudo);
+  await page.getByLabel("Mot de passe").fill(password);
+  await page.getByRole("button", { name: "Se connecter" }).click();
   await expect(page).toHaveURL("/");
 
   // 2. la liste affiche des tablées groupées par jour
-  await expect(page.getByRole("heading", { name: /Jour I —/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Vendredi 14 août/ }),
+  ).toBeVisible();
 
-  // 3. filtre « Places libres »
-  await page.getByRole("button", { name: "Places libres" }).click();
+  // 3. filtre « Places disponibles »
+  await page.getByRole("button", { name: "Places disponibles" }).click();
   await expect(page).toHaveURL(/free=true/);
 
   // 4. ouvrir une fiche tablée

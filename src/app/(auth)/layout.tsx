@@ -10,7 +10,7 @@ export default async function AuthLayout({
   if (session) redirect("/");
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center px-4 py-10">
+    <main className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4 py-8 sm:py-12">
       {children}
     </main>
   );

@@ -11,30 +11,38 @@ type Props = {
 };
 
 const LABELS = {
-  open: "places libres",
-  last: "dernière place !",
-  adminOnly: "places tente JDR uniquement",
+  open: "places publiques disponibles",
+  last: "dernière place publique disponible",
+  adminOnly: "places réservées à la tente JDR uniquement",
   full: "complet",
 } as const;
 
-/** Sceau de cire — compteur de places, élément signature de Critiquest. */
 export function SeatSeal({ table, size = "md" }: Props) {
   const state = seatState(table);
-  const taken = table.confirmed;
+  const publicSeats = table.placesLibresPubliques;
+  const label =
+    state === "open"
+      ? `${publicSeats} places`
+      : state === "last"
+        ? "Dernière place"
+        : state === "adminOnly"
+          ? size === "sm"
+            ? "Sur place"
+            : "Inscriptions sur place"
+          : "Complet";
+
   return (
     <div
       className={cn(
-        "seat-seal shrink-0",
-        size === "md" ? "size-14 text-lg" : "size-10 text-sm",
+        "seat-status",
+        size === "md" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs",
       )}
       data-state={state}
       role="img"
-      aria-label={`${taken} inscrits sur ${table.maxPlayers}, ${LABELS[state]}`}
+      aria-label={`${table.confirmed} inscrit${table.confirmed > 1 ? "s" : ""} sur ${table.maxPlayers}, ${LABELS[state]}`}
     >
-      <span className="leading-none tabular-nums">
-        {taken}
-        <span className="opacity-70 text-[0.65em]">/{table.maxPlayers}</span>
-      </span>
+      <span className="seat-status-dot" aria-hidden />
+      <strong className="font-medium tabular-nums">{label}</strong>
     </div>
   );
 }

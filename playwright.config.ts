@@ -13,7 +13,9 @@ export default defineConfig({
   },
   projects: [
     // Mobile-first : le contexte réel d'usage est un téléphone en convention
-    { name: "mobile", use: { ...devices["iPhone 13"] } },
+    // Chromium est déjà présent sur les runners CI ; Pixel 7 garde un vrai
+    // viewport/touch mobile sans dépendre d'un moteur WebKit non installé.
+    { name: "mobile", use: { ...devices["Pixel 7"] } },
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {

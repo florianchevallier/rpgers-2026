@@ -15,10 +15,10 @@ export function BackToListLink() {
     <button
       type="button"
       onClick={() => router.back()}
-      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       <ArrowLeft className="size-3.5" aria-hidden />
-      Retour aux tablées
+      Retour aux parties
     </button>
   );
 }

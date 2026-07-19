@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { cache } from "react";
 import { loginOfficial, logoutOfficial } from "@/server/rpgers-client";
 import { type User, userSchema } from "@/server/rpgers-schemas";
@@ -55,6 +56,13 @@ export const getCurrentSession = cache(async (): Promise<Session | null> => {
 export async function requireSession(): Promise<Session> {
   const session = await getCurrentSession();
   if (!session) throw new Error("Non authentifié");
+  return session;
+}
+
+/** Variante pour les pages : redirige proprement au lieu de lever une 500. */
+export async function requirePageSession(): Promise<Session> {
+  const session = await getCurrentSession();
+  if (!session) redirect("/login");
   return session;
 }
 

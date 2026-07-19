@@ -1,9 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Squelette de la fiche tablée — streaming pendant l'appel à l'API officielle. */
+/** Squelette de la fiche partie — streaming pendant l'appel à l'API officielle. */
 export default function Loading() {
   return (
-    <article className="mx-auto max-w-2xl" aria-busy>
+    <article className="mx-auto max-w-3xl" aria-busy>
       <Skeleton className="h-4 w-36" />
       <div className="mt-4">
         <Skeleton className="h-4 w-64" />

@@ -82,7 +82,7 @@ export function LabelFilterRow({
           onToggleExclude();
         }}
         aria-pressed={state === "excluded"}
-        aria-label={`Exclure les tablées portant le label ${nom}`}
+        aria-label={`Exclure les parties portant le label ${nom}`}
         className={cn(
           "shrink-0 rounded p-1.5 text-muted-foreground transition-colors hover:text-destructive",
           state === "excluded" && "text-destructive",

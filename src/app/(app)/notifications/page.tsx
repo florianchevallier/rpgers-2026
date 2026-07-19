@@ -1,50 +1,22 @@
-"use client";
+import { BellOff } from "lucide-react";
+import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
+import { requirePageSession } from "@/server/auth";
+import { getNotifications } from "@/server/rpgers-client";
 
-import { BellOff, CheckCheck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-
-type Notification = {
-  id: number;
-  message: string;
-  read: boolean;
-  createdAt?: string;
-  type?: string;
-};
-
-export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/notifications")
-      .then((r) => (r.ok ? r.json() : { notifications: [] }))
-      .then((d) => setNotifications(d.notifications ?? []))
-      .finally(() => setLoading(false));
-  }, []);
-
-  async function markAllRead() {
-    await fetch("/api/notifications", { method: "POST" });
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }
+export default async function NotificationsPage() {
+  const session = await requirePageSession();
+  const notifications = await getNotifications(session.jwt);
 
   return (
     <div className="mx-auto max-w-xl">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold tracking-wide">
-          Notifications
-        </h1>
-        {notifications.some((n) => !n.read) && (
-          <Button variant="outline" size="sm" onClick={markAllRead}>
-            <CheckCheck className="size-4" aria-hidden />
-            Tout marquer lu
-          </Button>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>
+        {notifications.some((notification) => !notification.read) && (
+          <MarkAllReadButton />
         )}
       </div>
 
-      {loading ? (
-        <p className="mt-8 text-center text-muted-foreground">Chargement…</p>
-      ) : notifications.length === 0 ? (
+      {notifications.length === 0 ? (
         <div className="mt-12 grid place-items-center text-center">
           <BellOff className="size-10 text-muted-foreground" aria-hidden />
           <p className="mt-3 text-muted-foreground">
@@ -53,16 +25,16 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <ul className="mt-6 flex flex-col gap-2">
-          {notifications.map((n) => (
+          {notifications.map((notification) => (
             <li
-              key={n.id}
-              className={`rounded-lg border p-3 text-sm ${
-                n.read
+              key={notification.id}
+              className={`rounded-xl border p-4 text-sm ${
+                notification.read
                   ? "border-border text-muted-foreground"
-                  : "border-primary/40 bg-primary/5"
+                  : "border-primary/30 bg-primary/5 text-foreground"
               }`}
             >
-              {n.message}
+              {notification.message}
             </li>
           ))}
         </ul>

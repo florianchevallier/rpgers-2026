@@ -33,11 +33,23 @@ const securityHeaders = [
   },
 ];
 
+const serviceWorkerHeaders = [
+  {
+    key: "Content-Type",
+    value: "application/javascript; charset=utf-8",
+  },
+  { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+  { key: "Service-Worker-Allowed", value: "/" },
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/sw.js", headers: serviceWorkerHeaders },
+    ];
   },
 };
 

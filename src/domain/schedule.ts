@@ -41,9 +41,21 @@ export type DayGroup = {
   tables: RpgersTable[];
 };
 
+type SchedulableTable = Pick<
+  RpgersTable,
+  "id" | "startDatetime" | "endDatetime"
+>;
+
+export type GenericDayGroup<T extends SchedulableTable> = Omit<
+  DayGroup,
+  "tables"
+> & { tables: T[] };
+
 /** Groupe les tablées par jour, triées chronologiquement. */
-export function groupTablesByDay(tables: RpgersTable[]): DayGroup[] {
-  const byDay = new Map<string, RpgersTable[]>();
+export function groupTablesByDay<T extends SchedulableTable>(
+  tables: T[],
+): GenericDayGroup<T>[] {
+  const byDay = new Map<string, T[]>();
   for (const table of tables) {
     const key = dayKey(table.startDatetime);
     const list = byDay.get(key) ?? [];

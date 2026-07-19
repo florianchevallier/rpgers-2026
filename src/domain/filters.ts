@@ -1,5 +1,5 @@
 import { dayKey, slotsOverlap } from "@/domain/schedule";
-import type { RpgersTable } from "@/server/rpgers-schemas";
+import type { RpgersTableListItem } from "@/domain/table-list";
 
 /**
  * Filtres de la liste des tablées — logique PURE (testée).
@@ -39,19 +39,22 @@ export const DEFAULT_FILTERS: TableFilters = {
   favoritesOnly: false,
 };
 
-export function isRegistered(table: RpgersTable, userId: number): boolean {
+export function isRegistered(
+  table: RpgersTableListItem,
+  userId: number,
+): boolean {
   return table.registrations.some(
     (r) => r.userId === userId && r.statut === "confirmed",
   );
 }
 
-export function isMine(table: RpgersTable, userId: number): boolean {
+export function isMine(table: RpgersTableListItem, userId: number): boolean {
   return table.ownerId === userId || isRegistered(table, userId);
 }
 
 /** La tablée compte-t-elle un participant (MJ ou joueur) parmi les favoris ? */
 export function hasFavoriteParticipant(
-  table: RpgersTable,
+  table: RpgersTableListItem,
   favoriteIds: ReadonlySet<number>,
 ): boolean {
   if (favoriteIds.has(table.ownerId)) return true;
@@ -63,16 +66,16 @@ export type FilterContext = {
   now: Date;
   currentUserId: number;
   /** mes tablées (MJ ou inscrit) — pour détecter les conflits d'horaire */
-  myTables: RpgersTable[];
+  myTables: RpgersTableListItem[];
   /** ids des joueurs/MJ favoris — pour favoritesOnly */
   favoriteIds: ReadonlySet<number>;
 };
 
 export function applyFilters(
-  tables: RpgersTable[],
+  tables: RpgersTableListItem[],
   filters: TableFilters,
   ctx: FilterContext,
-): RpgersTable[] {
+): RpgersTableListItem[] {
   return tables.filter((table) => {
     if (filters.hidePast && table.endDatetime < ctx.now) return false;
     if (filters.day && dayKey(table.startDatetime) !== filters.day)
@@ -112,13 +115,12 @@ export function applyFilters(
 }
 
 /**
- * Clés de recherche floue (Fuse.js) — titre, description, système, MJ.
+ * Clés de recherche floue (Fuse.js) — titre, système et MJ.
  * NB : les inscrits n'embarquent que leur userId dans la liste → non cherchables.
  */
-export function searchKeys(table: RpgersTable): Record<string, string> {
+export function searchKeys(table: RpgersTableListItem): Record<string, string> {
   return {
     titre: table.titre,
-    description: table.description,
     systemeJeu: table.systemeJeu,
     mj: table.owner.pseudo,
   };

@@ -8,16 +8,22 @@ import { isMine } from "@/domain/filters";
 import {
   formatDayTitle,
   groupTablesByDay,
-  roman,
   slotsOverlap,
 } from "@/domain/schedule";
-import { requireSession } from "@/server/auth";
+import { requirePageSession } from "@/server/auth";
 import { getTables } from "@/server/rpgers-client";
 
 export const revalidate = 30;
 
+const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "Europe/Paris",
+});
+
 export default async function PlanningPage() {
-  const session = await requireSession();
+  const session = await requirePageSession();
   const all = await getTables(session.jwt);
   const mine = all
     .filter((t) => isMine(t, session.user.id))
@@ -45,16 +51,11 @@ export default async function PlanningPage() {
   const mineByDay = new Map(
     groupTablesByDay(mine).map((day) => [day.key, day]),
   );
-  const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
   const days: PlanningDay[] = eventDays.map((eventDay) => ({
     key: eventDay.key,
     label: formatDayTitle(eventDay.date),
     shortLabel: shortDayFormatter.format(eventDay.date),
-    dayNumber: roman(eventDay.dayNumber),
+    dayNumber: String(eventDay.dayNumber),
     tables: (mineByDay.get(eventDay.key)?.tables ?? []).map((table) => ({
       id: table.id,
       title: table.titre,
@@ -78,12 +79,10 @@ export default async function PlanningPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="font-heading text-2xl font-bold tracking-wide">
-          Mes Parties
-        </h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Mon planning</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ton planning de la convention — {mine.length} tablée
-          {mine.length > 1 ? "s" : ""}.
+          {mine.length} partie{mine.length > 1 ? "s" : ""} prévue
+          {mine.length > 1 ? "s" : ""} pendant la convention.
         </p>
       </header>
 
@@ -97,7 +96,7 @@ export default async function PlanningPage() {
             aria-hidden
           />
           <p>
-            <strong>{conflictIds.size} tablées se chevauchent</strong> dans ton
+            <strong>{conflictIds.size} parties se chevauchent</strong> dans ton
             planning — elles sont marquées en rouge ci-dessous.
           </p>
         </div>
@@ -115,9 +114,9 @@ export default async function PlanningPage() {
               href="/"
               className="font-semibold text-primary hover:underline"
             >
-              Explore les tablées
+              Parcourir les parties
             </Link>{" "}
-            et rejoins ta première partie !
+            pour construire ton planning.
           </p>
         </div>
       ) : (

@@ -5,21 +5,27 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useOnlineStatus } from "@/lib/connectivity";
 
 const TYPES = [
   { value: "comportement", label: "Comportement d'un joueur / MJ" },
   { value: "salle", label: "Problème de salle / matériel" },
-  { value: "table", label: "Problème sur une tablée" },
+  { value: "table", label: "Problème sur une partie" },
   { value: "autre", label: "Autre" },
 ];
 
 export default function SignalementPage() {
+  const online = useOnlineStatus();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!online) {
+      setError("Connexion requise pour transmettre le signalement.");
+      return;
+    }
     setLoading(true);
     setError(null);
     const form = new FormData(event.currentTarget);
@@ -47,7 +53,7 @@ export default function SignalementPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="font-heading text-2xl font-bold tracking-wide">
+      <h1 className="text-3xl font-semibold tracking-tight">
         Signaler un problème
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -69,7 +75,7 @@ export default function SignalementPage() {
             <select
               id="type"
               name="type"
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
             >
               {TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -94,10 +100,15 @@ export default function SignalementPage() {
               {error}
             </p>
           )}
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || !online}>
             {loading && <Loader2 className="animate-spin" aria-hidden />}
             Envoyer le signalement
           </Button>
+          {!online && (
+            <p className="text-xs text-muted-foreground">
+              En cas d’urgence, adresse-toi directement à l’accueil.
+            </p>
+          )}
         </form>
       )}
     </div>

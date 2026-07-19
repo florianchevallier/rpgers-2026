@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useOnlineStatus } from "@/lib/connectivity";
 
 type Props = {
   tableId: number;
@@ -22,10 +23,19 @@ export function RegisterButton({
   hasConflict,
 }: Props) {
   const router = useRouter();
+  const online = useOnlineStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optimisticRegistered, setOptimisticRegistered] = useState<
+    boolean | null
+  >(null);
+  const registered = optimisticRegistered ?? isRegistered;
 
   async function act(action: "register" | "unregister") {
+    if (!online) {
+      setError("Connexion requise pour confirmer l’inscription.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -39,6 +49,7 @@ export function RegisterButton({
         setError(data.error ?? "Erreur inconnue");
         return;
       }
+      setOptimisticRegistered(action === "register");
       router.refresh();
     } catch {
       setError("Erreur réseau — réessaie.");
@@ -49,12 +60,12 @@ export function RegisterButton({
 
   return (
     <div>
-      {isRegistered ? (
+      {registered ? (
         <Button
           variant="destructive"
           size="lg"
           className="w-full sm:w-auto"
-          disabled={loading || unregisterLocked}
+          disabled={loading || unregisterLocked || !online}
           onClick={() => act("unregister")}
         >
           {loading && <Loader2 className="animate-spin" aria-hidden />}
@@ -64,15 +75,17 @@ export function RegisterButton({
         <Button
           size="lg"
           className="w-full sm:w-auto"
-          disabled={loading || isFull}
+          disabled={loading || isFull || !online}
           onClick={() => act("register")}
         >
           {loading && <Loader2 className="animate-spin" aria-hidden />}
-          {isFull
-            ? "Tablée complète"
-            : hasConflict
-              ? "S'inscrire quand même"
-              : "S'inscrire"}
+          {!online
+            ? "Connexion requise"
+            : isFull
+              ? "Partie complète"
+              : hasConflict
+                ? "S'inscrire quand même"
+                : "S'inscrire"}
         </Button>
       )}
       {error && (

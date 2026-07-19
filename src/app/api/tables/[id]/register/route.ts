@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession } from "@/server/auth";
 import {
   ApiError,
+  invalidateTables,
   registerToTable,
   unregisterFromTable,
 } from "@/server/rpgers-client";
@@ -29,6 +30,7 @@ export async function POST(request: Request, ctx: Ctx) {
 
   try {
     await registerToTable(session.jwt, tableId.data, body.data.pseudo);
+    invalidateTables(session.jwt);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof ApiError) {
@@ -59,6 +61,7 @@ export async function DELETE(request: Request, ctx: Ctx) {
 
   try {
     await unregisterFromTable(session.jwt, tableId.data, body.data.userId);
+    invalidateTables(session.jwt);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof ApiError) {
