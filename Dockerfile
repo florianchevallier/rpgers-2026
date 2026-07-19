@@ -27,7 +27,7 @@ RUN npx prisma generate \
 
 FROM node:24-slim AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nextjs \
     && mkdir /data && chown nextjs:nodejs /data
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
