@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import packageJson from "./package.json";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -45,6 +46,10 @@ const serviceWorkerHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION:
+      process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version,
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

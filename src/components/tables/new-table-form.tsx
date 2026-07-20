@@ -19,6 +19,11 @@ type Props = {
 };
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h
+const END_HOURS = Array.from({ length: 16 }, (_, i) => i + 9); // 9h → minuit
+
+function formatHour(hour: number): string {
+  return `${hour === 24 ? 0 : hour}h00`;
+}
 
 export function NewTableForm({ labels, days, isAdult }: Props) {
   const router = useRouter();
@@ -32,7 +37,7 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
   const [guestResults, setGuestResults] = useState<UserSummary[]>([]);
   const [day, setDay] = useState(days[0]?.key ?? "");
   const [startHour, setStartHour] = useState(14);
-  const [duration, setDuration] = useState(3);
+  const [endHour, setEndHour] = useState(17);
 
   const disabledLabels = useMemo(
     () => disabledLabelIds(labels, labelIds),
@@ -45,9 +50,15 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
     const start = new Date(
       `${day}T${String(startHour).padStart(2, "0")}:00:00`,
     );
-    const end = new Date(start.getTime() + duration * 3600_000);
+    const end = new Date(`${day}T00:00:00`);
+    end.setHours(endHour);
     return { start, end };
-  }, [day, startHour, duration]);
+  }, [day, startHour, endHour]);
+
+  function changeStartHour(hour: number) {
+    setStartHour(hour);
+    if (endHour <= hour) setEndHour(Math.min(hour + 3, 24));
+  }
 
   async function searchGuest(q: string) {
     setGuestQuery(q);
@@ -138,10 +149,10 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
         days={days}
         day={day}
         startHour={startHour}
-        duration={duration}
+        endHour={endHour}
         onDayChange={setDay}
-        onStartHourChange={setStartHour}
-        onDurationChange={setDuration}
+        onStartHourChange={changeStartHour}
+        onEndHourChange={setEndHour}
       />
       <LabelsField
         labels={visibleLabels}
@@ -231,19 +242,21 @@ function ScheduleFields({
   days,
   day,
   startHour,
-  duration,
+  endHour,
   onDayChange,
   onStartHourChange,
-  onDurationChange,
+  onEndHourChange,
 }: {
   days: Props["days"];
   day: string;
   startHour: number;
-  duration: number;
+  endHour: number;
   onDayChange: (day: string) => void;
   onStartHourChange: (hour: number) => void;
-  onDurationChange: (duration: number) => void;
+  onEndHourChange: (hour: number) => void;
 }) {
+  const availableEndHours = END_HOURS.filter((hour) => hour > startHour);
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -263,7 +276,7 @@ function ScheduleFields({
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="start">Début</Label>
+          <Label htmlFor="start">Heure de début</Label>
           <select
             id="start"
             value={startHour}
@@ -272,22 +285,22 @@ function ScheduleFields({
           >
             {HOURS.map((hour) => (
               <option key={hour} value={hour}>
-                {hour}h00
+                {formatHour(hour)}
               </option>
             ))}
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="duration">Durée</Label>
+          <Label htmlFor="end">Heure de fin</Label>
           <select
-            id="duration"
-            value={duration}
-            onChange={(event) => onDurationChange(Number(event.target.value))}
+            id="end"
+            value={endHour}
+            onChange={(event) => onEndHourChange(Number(event.target.value))}
             className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
           >
-            {[1, 2, 3, 4, 5, 6].map((hours) => (
-              <option key={hours} value={hours}>
-                {hours}h
+            {availableEndHours.map((hour) => (
+              <option key={hour} value={hour}>
+                {formatHour(hour)}
               </option>
             ))}
           </select>

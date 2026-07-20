@@ -16,9 +16,10 @@ const LINKS = [
 
 type Props = {
   pseudo: string | null;
+  version: string;
 };
 
-export function Navbar({ pseudo }: Props) {
+export function Navbar({ pseudo, version }: Props) {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/92 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
@@ -34,6 +35,9 @@ export function Navbar({ pseudo }: Props) {
             R
           </span>
           <span className="text-lg">RPGers</span>
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-normal text-muted-foreground">
+            v{version}
+          </span>
         </Link>
 
         <nav

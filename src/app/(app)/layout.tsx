@@ -15,7 +15,10 @@ export default async function AppLayout({
 
   return (
     <>
-      <Navbar pseudo={session.user.pseudo} />
+      <Navbar
+        pseudo={session.user.pseudo}
+        version={process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+      />
       <OfflineRuntime />
       <RealtimeCenter />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 sm:pb-12 sm:pt-8">
