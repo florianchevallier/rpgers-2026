@@ -40,9 +40,11 @@ export function TableCard({
             <CalendarClock className="size-3.5" aria-hidden />
             {formatSlot(table.startDatetime, table.endDatetime)}
           </span>
-          <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="inline-flex min-w-0 items-center gap-1.5 sm:w-full">
             <MapPin className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{table.salle.nom}</span>
+            <span className="min-w-0 truncate sm:overflow-visible sm:whitespace-normal sm:break-words">
+              {table.salle.nom}
+            </span>
           </span>
         </p>
 
@@ -90,7 +92,7 @@ export function TableCard({
             </div>
           )}
 
-          <PlayersStrip players={players} max={2} className="mt-3 sm:hidden" />
+          <PlayersStrip players={players} className="mt-3 sm:hidden" />
           <PlayersStrip
             players={players}
             max={3}

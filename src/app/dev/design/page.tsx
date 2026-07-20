@@ -11,7 +11,10 @@ export default function DesignPreviewPage() {
 
   const base = tableSchema.parse(fixture);
   const tables: RpgersTable[] = [
-    base,
+    {
+      ...base,
+      salle: { ...base.salle, nom: "TABLE 48 TIMON ET PUMBA" },
+    },
     {
       ...base,
       id: 7001,
@@ -47,13 +50,17 @@ export default function DesignPreviewPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <TablesExplorer
         tables={tables}
         labelsCatalog={labelsCatalog as CatalogLabel[]}
         currentUserId={17445}
         favoriteIds={[]}
-        knownPlayers={[]}
+        knownPlayers={[
+          [17388, "Ana"],
+          [17324, "Basile"],
+          [17329, "Chloé"],
+        ]}
       />
     </main>
   );
