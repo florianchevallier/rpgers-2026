@@ -53,6 +53,13 @@ export function TablesExplorer({
       ),
     [tables],
   );
+  const systems = useMemo(
+    () =>
+      [...new Set(tables.map((t) => t.systemeJeu))].sort((a, b) =>
+        a.localeCompare(b, "fr"),
+      ),
+    [tables],
+  );
 
   // Fuse est chargé uniquement quand l'utilisateur commence une recherche :
   // le bundle initial de la home reste plus léger sur réseau contraint.
@@ -139,6 +146,7 @@ export function TablesExplorer({
         days={allDays}
         labels={labelsCatalog}
         mjs={mjs}
+        systems={systems}
         query={query}
         onQueryChange={setQuery}
       />

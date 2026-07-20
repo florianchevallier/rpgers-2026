@@ -14,11 +14,14 @@ export async function listFilterPresets(
     where: { userId },
     orderBy: { name: "asc" },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    params: JSON.parse(r.params) as FilterParams,
-  }));
+  return rows.map((r) => {
+    const params = JSON.parse(r.params) as Partial<FilterParams>;
+    return {
+      id: r.id,
+      name: r.name,
+      params: { ...params, system: params.system ?? null } as FilterParams,
+    };
+  });
 }
 
 export async function saveFilterPreset(

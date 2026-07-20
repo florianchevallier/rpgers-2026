@@ -106,7 +106,10 @@ export function FilterPresetsMenu({ currentParams, onApply }: Props) {
                     <button
                       type="button"
                       onClick={() => {
-                        onApply(preset.params);
+                        onApply({
+                          ...preset.params,
+                          system: preset.params.system ?? null,
+                        });
                         setOpen(false);
                       }}
                       className="flex-1 truncate rounded px-2 py-1 text-left text-sm hover:bg-accent"

@@ -5,6 +5,7 @@ import {
   User,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { Suspense, ViewTransition } from "react";
@@ -93,8 +94,15 @@ export default async function TableDetailPage({ params }: Props) {
                 {table.titre}
               </h1>
             </ViewTransition>
-            <p className="mt-2 text-base font-medium text-muted-foreground sm:text-lg">
-              {table.systemeJeu}
+            <p className="mt-2 text-base font-medium sm:text-lg">
+              <Link
+                href={{ pathname: "/", query: { system: table.systemeJeu } }}
+                transitionTypes={["nav-back"]}
+                className="text-muted-foreground underline decoration-border decoration-1 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title={`Voir toutes les parties utilisant ${table.systemeJeu}`}
+              >
+                {table.systemeJeu}
+              </Link>
             </p>
           </div>
           <SeatSeal table={table} />

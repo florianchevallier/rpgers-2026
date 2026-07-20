@@ -38,6 +38,7 @@ type Props = {
   days: Array<Pick<DayGroup, "key" | "date">>;
   labels: CatalogLabel[];
   mjs: string[];
+  systems: string[];
   query: string;
   onQueryChange: (q: string) => void;
 };
@@ -48,7 +49,14 @@ const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "Europe/Paris",
 });
 
-export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
+export function FilterBar({
+  days,
+  labels,
+  mjs,
+  systems,
+  query,
+  onQueryChange,
+}: Props) {
   const { params, setParams, activeCount, RESET } = useTableFilters();
   const [labelsOpen, setLabelsOpen] = useState(false);
 
@@ -261,6 +269,26 @@ export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
                 </fieldset>
               )}
 
+              {systems.length > 0 && (
+                <label className="grid gap-1.5 text-sm font-semibold">
+                  Système de jeu
+                  <select
+                    value={params.system ?? ""}
+                    onChange={(event) =>
+                      setParams({ system: event.target.value || null })
+                    }
+                    className="h-10 rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground"
+                  >
+                    <option value="">Tous les systèmes</option>
+                    {systems.map((system) => (
+                      <option key={system} value={system}>
+                        {system}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
               <div>
                 <p className="mb-2 text-sm font-semibold">
                   Filtres enregistrés
@@ -309,6 +337,12 @@ export function FilterBar({ days, labels, mjs, query, onQueryChange }: Props) {
 
       <fieldset className="horizontal-scroll -mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         <legend className="sr-only">Filtres rapides</legend>
+        {params.system && (
+          <FilterChip active onClick={() => setParams({ system: null })}>
+            Système : {params.system}
+            <X className="ml-1 size-3.5" aria-hidden />
+          </FilterChip>
+        )}
         <FilterChip
           active={params.free}
           onClick={() => setParams({ free: !params.free })}
@@ -347,7 +381,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "h-9 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "border-primary/25 bg-primary/10 text-primary"
           : "border-border bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground",

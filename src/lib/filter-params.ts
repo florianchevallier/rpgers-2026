@@ -19,6 +19,7 @@ export const filterParsers = {
   excludedLabels: parseAsArrayOf(parseAsInteger).withDefault([]),
   mj: parseAsString,
   excludedMj: parseAsString,
+  system: parseAsString,
   free: parseAsBoolean.withDefault(false),
   mine: parseAsBoolean.withDefault(false),
   past: parseAsBoolean.withDefault(false), // afficher les passées (défaut : masquées)
@@ -33,6 +34,7 @@ export type FilterParams = {
   excludedLabels: number[];
   mj: string | null;
   excludedMj: string | null;
+  system: string | null;
   free: boolean;
   mine: boolean;
   past: boolean;
@@ -52,6 +54,7 @@ export function useTableFilters() {
     excludedLabelIds: params.excludedLabels,
     mj: params.mj ?? undefined,
     excludedMj: params.excludedMj ?? undefined,
+    system: params.system ?? undefined,
     freeSeatsOnly: params.free,
     mineOnly: params.mine,
     hidePast: !params.past,
@@ -65,6 +68,7 @@ export function useTableFilters() {
     params.excludedLabels.length +
     (params.mj ? 1 : 0) +
     (params.excludedMj ? 1 : 0) +
+    (params.system ? 1 : 0) +
     (params.free ? 1 : 0) +
     (params.mine ? 1 : 0) +
     (params.hideConflicting ? 1 : 0) +
@@ -76,6 +80,7 @@ export function useTableFilters() {
     excludedLabels: [],
     mj: null,
     excludedMj: null,
+    system: null,
     free: false,
     mine: false,
     past: params.past, // "passées" n'est pas un filtre actif au sens du compteur — on le laisse tel quel

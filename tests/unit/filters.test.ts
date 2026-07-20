@@ -143,6 +143,18 @@ describe("applyFilters", () => {
     ).toEqual([other]);
   });
 
+  it("filtre par système de jeu exact", () => {
+    const matching = table(1, { systemeJeu: "Donjons & Dragons 5" });
+    const other = table(2, { systemeJeu: "Pathfinder 2" });
+    expect(
+      applyFilters(
+        [matching, other],
+        { ...DEFAULT_FILTERS, system: "Donjons & Dragons 5" },
+        ctx(),
+      ),
+    ).toEqual([matching]);
+  });
+
   it("freeSeatsOnly exclut les complètes", () => {
     const full = table(1, { placesLibresPubliques: 0 });
     const open = table(2);

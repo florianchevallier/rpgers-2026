@@ -17,6 +17,8 @@ export type TableFilters = {
   mj?: string;
   /** pseudo exact du MJ à exclure */
   excludedMj?: string;
+  /** nom exact du système de jeu */
+  system?: string;
   /** uniquement les tablées avec ≥ 1 place publique */
   freeSeatsOnly: boolean;
   /** uniquement mes parties (inscrit ou MJ) */
@@ -83,6 +85,7 @@ export function applyFilters(
     if (filters.mj && table.owner.pseudo !== filters.mj) return false;
     if (filters.excludedMj && table.owner.pseudo === filters.excludedMj)
       return false;
+    if (filters.system && table.systemeJeu !== filters.system) return false;
     if (filters.freeSeatsOnly && table.placesLibresPubliques <= 0) return false;
     if (filters.mineOnly && !isMine(table, ctx.currentUserId)) return false;
     if (filters.labelIds.length > 0) {

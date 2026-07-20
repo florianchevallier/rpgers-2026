@@ -13,6 +13,7 @@ const paramsSchema = z.object({
   excludedLabels: z.array(z.number()),
   mj: z.string().nullable(),
   excludedMj: z.string().nullable(),
+  system: z.string().nullable().default(null),
   free: z.boolean(),
   mine: z.boolean(),
   past: z.boolean(),
