@@ -1,22 +1,23 @@
 import { NewTableForm } from "@/components/tables/new-table-form";
-import { groupTablesByDay } from "@/domain/schedule";
 import { requirePageSession } from "@/server/auth";
 import { getLabelsCatalog } from "@/server/labels";
-import { getTables } from "@/server/rpgers-client";
 
 export const revalidate = 300;
 
+const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+  timeZone: "Europe/Paris",
+});
+const eventDayKeys = ["2026-08-14", "2026-08-15", "2026-08-16"] as const;
+
 export default async function NewTablePage() {
   const session = await requirePageSession();
-  const [labels, tables] = await Promise.all([
-    getLabelsCatalog(),
-    getTables(session.jwt),
-  ]);
+  const labels = await getLabelsCatalog();
 
-  // jours de la convention déduits des tablées existantes
-  const days = groupTablesByDay(tables).map((d) => ({
-    key: d.key,
-    dayNumber: d.dayNumber,
+  const days = eventDayKeys.map((key) => ({
+    key,
+    label: shortDayFormatter.format(new Date(`${key}T12:00:00+02:00`)),
   }));
 
   return (

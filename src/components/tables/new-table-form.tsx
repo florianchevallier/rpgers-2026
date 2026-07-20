@@ -8,22 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { type CatalogLabel, disabledLabelIds } from "@/domain/labels";
+import { createTableSlot } from "@/domain/schedule";
 import { useOnlineStatus } from "@/lib/connectivity";
 import { cn } from "@/lib/utils";
 import type { UserSummary } from "@/server/rpgers-schemas";
 
 type Props = {
   labels: CatalogLabel[];
-  days: { key: string; dayNumber: number }[];
+  days: { key: string; label: string }[];
   isAdult: boolean;
 };
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h
-const END_HOURS = Array.from({ length: 16 }, (_, i) => i + 9); // 9h → minuit
-
-function formatHour(hour: number): string {
-  return `${hour === 24 ? 0 : hour}h00`;
-}
+const shortDayFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+});
 
 export function NewTableForm({ labels, days, isAdult }: Props) {
   const router = useRouter();
@@ -36,8 +35,8 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
   const [guestQuery, setGuestQuery] = useState("");
   const [guestResults, setGuestResults] = useState<UserSummary[]>([]);
   const [day, setDay] = useState(days[0]?.key ?? "");
-  const [startHour, setStartHour] = useState(14);
-  const [endHour, setEndHour] = useState(17);
+  const [startTime, setStartTime] = useState("14:00");
+  const [endTime, setEndTime] = useState("17:00");
 
   const disabledLabels = useMemo(
     () => disabledLabelIds(labels, labelIds),
@@ -47,18 +46,8 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
 
   const slot = useMemo(() => {
     if (!day) return null;
-    const start = new Date(
-      `${day}T${String(startHour).padStart(2, "0")}:00:00`,
-    );
-    const end = new Date(`${day}T00:00:00`);
-    end.setHours(endHour);
-    return { start, end };
-  }, [day, startHour, endHour]);
-
-  function changeStartHour(hour: number) {
-    setStartHour(hour);
-    if (endHour <= hour) setEndHour(Math.min(hour + 3, 24));
-  }
+    return createTableSlot(day, startTime, endTime);
+  }, [day, startTime, endTime]);
 
   async function searchGuest(q: string) {
     setGuestQuery(q);
@@ -148,11 +137,12 @@ export function NewTableForm({ labels, days, isAdult }: Props) {
       <ScheduleFields
         days={days}
         day={day}
-        startHour={startHour}
-        endHour={endHour}
+        startTime={startTime}
+        endTime={endTime}
+        slot={slot}
         onDayChange={setDay}
-        onStartHourChange={changeStartHour}
-        onEndHourChange={setEndHour}
+        onStartTimeChange={setStartTime}
+        onEndTimeChange={setEndTime}
       />
       <LabelsField
         labels={visibleLabels}
@@ -241,21 +231,24 @@ function BasicFields() {
 function ScheduleFields({
   days,
   day,
-  startHour,
-  endHour,
+  startTime,
+  endTime,
+  slot,
   onDayChange,
-  onStartHourChange,
-  onEndHourChange,
+  onStartTimeChange,
+  onEndTimeChange,
 }: {
   days: Props["days"];
   day: string;
-  startHour: number;
-  endHour: number;
+  startTime: string;
+  endTime: string;
+  slot: { start: Date; end: Date } | null;
   onDayChange: (day: string) => void;
-  onStartHourChange: (hour: number) => void;
-  onEndHourChange: (hour: number) => void;
+  onStartTimeChange: (time: string) => void;
+  onEndTimeChange: (time: string) => void;
 }) {
-  const availableEndHours = END_HOURS.filter((hour) => hour > startHour);
+  const endsNextDay =
+    slot !== null && slot.end.toDateString() !== slot.start.toDateString();
 
   return (
     <>
@@ -270,40 +263,32 @@ function ScheduleFields({
           >
             {days.map((option) => (
               <option key={option.key} value={option.key}>
-                Jour {option.dayNumber}
+                {option.label}
               </option>
             ))}
           </select>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="start">Heure de début</Label>
-          <select
+          <Input
             id="start"
-            value={startHour}
-            onChange={(event) => onStartHourChange(Number(event.target.value))}
-            className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
-          >
-            {HOURS.map((hour) => (
-              <option key={hour} value={hour}>
-                {formatHour(hour)}
-              </option>
-            ))}
-          </select>
+            type="time"
+            step={60}
+            required
+            value={startTime}
+            onChange={(event) => onStartTimeChange(event.target.value)}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="end">Heure de fin</Label>
-          <select
+          <Input
             id="end"
-            value={endHour}
-            onChange={(event) => onEndHourChange(Number(event.target.value))}
-            className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
-          >
-            {availableEndHours.map((hour) => (
-              <option key={hour} value={hour}>
-                {formatHour(hour)}
-              </option>
-            ))}
-          </select>
+            type="time"
+            step={60}
+            required
+            value={endTime}
+            onChange={(event) => onEndTimeChange(event.target.value)}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="maxPlayers">Joueurs max</Label>
@@ -318,6 +303,11 @@ function ScheduleFields({
           />
         </div>
       </div>
+      {endsNextDay && slot && (
+        <p className="-mt-2 text-xs font-medium text-primary">
+          La partie se termine le {shortDayFormatter.format(slot.end)}.
+        </p>
+      )}
       <p className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
         La salle est attribuée par l&apos;orga — elle apparaîtra sur ta partie
         une fois validée.

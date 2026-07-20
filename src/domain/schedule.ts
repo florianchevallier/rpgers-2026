@@ -100,6 +100,23 @@ export function formatDayTitle(date: Date): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
+/** Construit un créneau local ; une heure de fin antérieure passe au lendemain. */
+export function createTableSlot(
+  day: string,
+  startTime: string,
+  endTime: string,
+): { start: Date; end: Date } | null {
+  if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+    return null;
+  }
+
+  const start = new Date(`${day}T${startTime}:00`);
+  const end = new Date(`${day}T${endTime}:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  if (end <= start) end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
 export type SeatState = "open" | "last" | "adminOnly" | "full";
 
 /**

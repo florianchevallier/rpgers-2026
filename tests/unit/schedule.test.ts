@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   conflictingTables,
+  createTableSlot,
   formatSlot,
   formatTime,
   groupTablesByDay,
@@ -50,6 +51,24 @@ describe("formatTime / formatSlot", () => {
         new Date("2026-08-14T17:30:00"),
       ),
     ).toBe("14h → 17h30");
+  });
+});
+
+describe("createTableSlot", () => {
+  it("conserve les minutes choisies", () => {
+    const slot = createTableSlot("2026-08-14", "14:12", "17:43");
+    expect(slot?.start.getHours()).toBe(14);
+    expect(slot?.start.getMinutes()).toBe(12);
+    expect(slot?.end.getHours()).toBe(17);
+    expect(slot?.end.getMinutes()).toBe(43);
+  });
+
+  it("place la fin au lendemain quand elle est antérieure au début", () => {
+    const slot = createTableSlot("2026-08-14", "23:00", "03:21");
+    expect(slot?.start.getDate()).toBe(14);
+    expect(slot?.end.getDate()).toBe(15);
+    expect(slot?.end.getHours()).toBe(3);
+    expect(slot?.end.getMinutes()).toBe(21);
   });
 });
 

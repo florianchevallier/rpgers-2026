@@ -1,4 +1,4 @@
-const VERSION = "v0.3.1";
+const VERSION = "v0.3.2";
 const STATIC_CACHE = `rpgers-static-${VERSION}`;
 const PAGE_CACHE = `rpgers-pages-${VERSION}`;
 const CACHE_PREFIX = "rpgers-";
