@@ -1,8 +1,8 @@
 "use client";
 
-import { CircleHelp, CircleUser, Flag } from "lucide-react";
+import { ArrowLeft, CircleHelp, CircleUser, Flag } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,49 @@ type Props = {
 
 export function Navbar({ pseudo, version }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isTableDetail = /^\/tables\/\d+$/.test(pathname);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/92 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-15 max-w-6xl items-center gap-2 px-4 sm:px-6">
+    <header
+      className="sticky top-0 z-40 border-b border-border/70 bg-background/92 pt-[env(safe-area-inset-top)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80"
+      style={{ viewTransitionName: "app-header" }}
+    >
+      <div className="grid h-14 grid-cols-[5.5rem_1fr_5.5rem] items-center px-2 sm:hidden">
+        {isTableDetail ? (
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="grid size-11 place-items-center rounded-full text-foreground transition-colors active:bg-muted"
+            aria-label="Retour aux parties"
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+          </button>
+        ) : (
+          <Link
+            href="/"
+            transitionTypes={["nav-tab"]}
+            className="grid size-10 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-primary/20"
+            aria-label="RPGers — Parties"
+          >
+            R
+          </Link>
+        )}
+
+        <p className="truncate px-2 text-center text-[15px] font-semibold tracking-tight">
+          {isTableDetail ? "Détail de la partie" : "RPGers"}
+        </p>
+
+        <div className="flex justify-end">
+          <NotificationBell />
+          {!isTableDetail && <ThemeToggle />}
+        </div>
+      </div>
+
+      <div className="mx-auto hidden h-15 max-w-6xl items-center gap-2 px-6 sm:flex">
         <Link
           href="/"
+          transitionTypes={["nav-tab"]}
           className="flex min-w-0 items-center gap-2.5 rounded-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span
@@ -51,6 +89,7 @@ export function Navbar({ pseudo, version }: Props) {
               <Link
                 key={href}
                 href={href}
+                transitionTypes={["nav-tab"]}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -72,7 +111,11 @@ export function Navbar({ pseudo, version }: Props) {
             asChild
             className="hidden md:flex"
           >
-            <Link href="/signalement" aria-label="Signaler un problème">
+            <Link
+              href="/signalement"
+              transitionTypes={["nav-tab"]}
+              aria-label="Signaler un problème"
+            >
               <Flag className="size-4" aria-hidden />
             </Link>
           </Button>
@@ -82,7 +125,7 @@ export function Navbar({ pseudo, version }: Props) {
             asChild
             className="hidden md:flex"
           >
-            <Link href="/faq" aria-label="Aide">
+            <Link href="/faq" transitionTypes={["nav-tab"]} aria-label="Aide">
               <CircleHelp className="size-4" aria-hidden />
             </Link>
           </Button>
@@ -92,6 +135,7 @@ export function Navbar({ pseudo, version }: Props) {
             <Button variant="ghost" size="sm" asChild className="gap-1.5 px-2">
               <Link
                 href="/profile"
+                transitionTypes={["nav-tab"]}
                 aria-label={`Profil de ${pseudo}`}
                 aria-current={pathname === "/profile" ? "page" : undefined}
               >

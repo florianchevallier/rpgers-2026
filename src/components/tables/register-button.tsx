@@ -64,7 +64,7 @@ export function RegisterButton({
         <Button
           variant="destructive"
           size="lg"
-          className="w-full sm:w-auto"
+          className="w-full"
           disabled={loading || unregisterLocked || !online}
           onClick={() => act("unregister")}
         >
@@ -74,7 +74,7 @@ export function RegisterButton({
       ) : (
         <Button
           size="lg"
-          className="w-full sm:w-auto"
+          className="w-full"
           disabled={loading || isFull || !online}
           onClick={() => act("register")}
         >

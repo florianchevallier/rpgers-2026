@@ -136,10 +136,12 @@
     @apply font-sans;
     min-width: 320px;
     scroll-padding-top: 5rem;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
   }
   ::selection {
     @apply bg-primary/30;
@@ -187,5 +189,85 @@
   .table-card {
     content-visibility: auto;
     contain-intrinsic-size: auto 8.5rem;
+  }
+}
+
+/* Navigation spatiale : le contenu bouge, les barres de l'application restent
+   des repères fixes. Les navigateurs sans View Transitions gardent le rendu
+   instantané habituel. */
+::view-transition-group(app-header),
+::view-transition-group(app-tabbar) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(app-header),
+::view-transition-old(app-tabbar) {
+  display: none;
+}
+
+::view-transition-new(app-header),
+::view-transition-new(app-tabbar) {
+  animation: none;
+}
+
+::view-transition-group(.nav-forward) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(.nav-forward) {
+  animation: 130ms ease-in both app-fade-out, 280ms ease-in-out both app-slide-out;
+}
+
+::view-transition-new(.nav-forward) {
+  animation: 220ms ease-out 40ms both app-fade-in, 280ms cubic-bezier(0.22, 1, 0.36, 1) both app-slide-in;
+}
+
+::view-transition-old(.nav-tab) {
+  animation: 110ms ease-out both app-fade-out;
+}
+
+::view-transition-new(.nav-tab) {
+  animation: 180ms ease-out 30ms both app-fade-in;
+}
+
+::view-transition-group(.table-title-morph) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes app-fade-out {
+  to {
+    opacity: 0;
+    filter: blur(1px);
+  }
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(1px);
+  }
+}
+
+@keyframes app-slide-out {
+  to {
+    translate: -2rem 0;
+  }
+}
+
+@keyframes app-slide-in {
+  from {
+    translate: 2rem 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }

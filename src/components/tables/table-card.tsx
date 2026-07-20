@@ -1,5 +1,6 @@
 import { CalendarClock, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { LabelChip } from "@/components/tables/label-badge";
 import { PlayersStrip } from "@/components/tables/players-strip";
 import { SeatSeal } from "@/components/tables/seat-seal";
@@ -30,6 +31,7 @@ export function TableCard({
   return (
     <Link
       href={`/tables/${table.id}`}
+      transitionTypes={["nav-forward"]}
       className="table-card group block w-full min-w-0 overflow-hidden rounded-xl border border-border/90 bg-card p-4 shadow-xs transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
     >
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto] sm:gap-x-6">
@@ -45,9 +47,14 @@ export function TableCard({
         </p>
 
         <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
-          <h3 className="text-base font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-lg">
-            {table.titre}
-          </h3>
+          <ViewTransition
+            name={`table-title-${table.id}`}
+            share="table-title-morph"
+          >
+            <h3 className="text-base font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-lg">
+              {table.titre}
+            </h3>
+          </ViewTransition>
           <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
             <span className="truncate font-medium text-foreground/80">
               {table.systemeJeu}

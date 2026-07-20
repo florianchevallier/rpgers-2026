@@ -33,8 +33,8 @@ export async function harvestUsers(users: UserSummary[]): Promise<void> {
 /**
  * Apparie des pseudos (extraits du RSC détail, qui ne porte PAS les userId)
  * avec leurs ids officiels : annuaire d'abord, puis la recherche officielle
- * pour les manquants (1 appel séquentiel par pseudo, moissonné ensuite →
- * coût unique par joueur, plus rien aux visites suivantes). Best-effort.
+ * pour les manquants (petits lots parallèles, moissonnés ensuite → coût unique
+ * par joueur, plus rien aux visites suivantes). Best-effort.
  */
 export async function resolveUsersByPseudos(
   jwt: string,
@@ -46,13 +46,25 @@ export async function resolveUsersByPseudos(
     .catch(() => []);
   const knownPseudos = new Set(known.map((k) => k.pseudo));
 
+  const missing = pseudos.filter((pseudo) => !knownPseudos.has(pseudo));
   const found: UserSummary[] = [];
-  for (const pseudo of pseudos.filter((p) => !knownPseudos.has(p))) {
-    const results = await searchUsers(jwt, pseudo).catch(() => []);
-    const hit =
-      results.find((u) => u.pseudo === pseudo) ??
-      results.find((u) => u.pseudo.toLowerCase() === pseudo.toLowerCase());
-    if (hit) found.push(hit);
+  const concurrency = 4;
+
+  for (let index = 0; index < missing.length; index += concurrency) {
+    const batch = missing.slice(index, index + concurrency);
+    const hits = await Promise.all(
+      batch.map(async (pseudo) => {
+        const results = await searchUsers(jwt, pseudo).catch(() => []);
+        return (
+          results.find((user) => user.pseudo === pseudo) ??
+          results.find(
+            (user) => user.pseudo.toLowerCase() === pseudo.toLowerCase(),
+          ) ??
+          null
+        );
+      }),
+    );
+    found.push(...hits.filter((hit): hit is UserSummary => hit !== null));
   }
   await harvestUsers(found);
 

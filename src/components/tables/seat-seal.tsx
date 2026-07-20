@@ -31,6 +31,16 @@ export function SeatSeal({ table, size = "md" }: Props) {
             : "Inscriptions sur place"
           : "Complet";
 
+  const responsiveLabel =
+    state === "adminOnly" && size === "md" ? (
+      <>
+        <span className="lg:hidden">Sur place</span>
+        <span className="hidden lg:inline">Inscriptions sur place</span>
+      </>
+    ) : (
+      label
+    );
+
   return (
     <div
       className={cn(
@@ -42,7 +52,7 @@ export function SeatSeal({ table, size = "md" }: Props) {
       aria-label={`${table.confirmed} inscrit${table.confirmed > 1 ? "s" : ""} sur ${table.maxPlayers}, ${LABELS[state]}`}
     >
       <span className="seat-status-dot" aria-hidden />
-      <strong className="font-medium tabular-nums">{label}</strong>
+      <strong className="font-medium tabular-nums">{responsiveLabel}</strong>
     </div>
   );
 }

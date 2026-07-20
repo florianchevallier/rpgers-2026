@@ -16,10 +16,11 @@ export function MobileTabBar() {
   const pathname = usePathname();
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 sm:hidden"
       aria-label="Navigation principale"
+      style={{ viewTransitionName: "app-tabbar" }}
     >
-      <div className="mx-auto grid h-16 max-w-md grid-cols-4 px-2">
+      <div className="mx-auto grid h-16 max-w-md grid-cols-4 gap-1 px-2 py-1">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -27,22 +28,17 @@ export function MobileTabBar() {
             <Link
               key={href}
               href={href}
+              transitionTypes={["nav-tab"]}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-medium transition-colors",
+                "relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-medium transition-[color,background-color,transform] active:scale-95",
                 active
-                  ? "text-primary"
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground active:bg-muted",
               )}
             >
               <Icon className="size-5" aria-hidden />
               {label}
-              {active && (
-                <span
-                  className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary"
-                  aria-hidden
-                />
-              )}
             </Link>
           );
         })}

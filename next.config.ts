@@ -46,6 +46,9 @@ const serviceWorkerHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  experimental: {
+    viewTransition: true,
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION:
       process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version,
