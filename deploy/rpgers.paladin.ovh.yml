@@ -23,6 +23,7 @@ services:
       SLACK_CRON_SECRET_FILE: /run/secrets/rpgers_2026_slack_cron_secret
       GEMINI_API_KEY_FILE: /run/secrets/rpgers_2026_gemini_api_key
       GEMINI_MODEL: gemini-3.5-flash
+      GEMINI_RECOMMENDER_MODEL: gemini-3.6-flash
       PERPLEXITY_API_KEY_FILE: /run/secrets/rpgers_2026_perplexity_api_key
       PERPLEXITY_MODEL: sonar-pro
       GAME_RESEARCH_CACHE_DAYS: 30

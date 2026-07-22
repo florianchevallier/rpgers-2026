@@ -1,12 +1,19 @@
 "use client";
 
-import { CalendarDays, CircleUser, LayoutGrid, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  CircleUser,
+  LayoutGrid,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/", label: "Parties", icon: LayoutGrid },
+  { href: "/choisir", label: "Choisir", icon: Sparkles },
   { href: "/planning", label: "Planning", icon: CalendarDays },
   { href: "/tables/new", label: "Proposer", icon: Plus },
   { href: "/profile", label: "Profil", icon: CircleUser },
@@ -20,7 +27,7 @@ export function MobileTabBar() {
       aria-label="Navigation principale"
       style={{ viewTransitionName: "app-tabbar" }}
     >
-      <div className="mx-auto grid h-16 max-w-md grid-cols-4 gap-1 px-2 py-1">
+      <div className="mx-auto grid h-16 max-w-md grid-cols-5 gap-1 px-2 py-1">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
