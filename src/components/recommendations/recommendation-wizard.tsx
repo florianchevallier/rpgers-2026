@@ -3,19 +3,30 @@
 import {
   ArrowRight,
   Bot,
+  CalendarPlus,
   CalendarRange,
   Check,
+  CheckCircle2,
+  CircleAlert,
   LoaderCircle,
   MapPin,
   RefreshCw,
   RotateCcw,
   Search,
   Sparkles,
+  Trash2,
   Users,
   Utensils,
 } from "lucide-react";
 import Link from "next/link";
-import { type ComponentType, useEffect, useMemo, useState } from "react";
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +46,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 type Phase =
+  | "restoring"
   | "idle"
   | "search"
   | "searching"
@@ -51,8 +63,6 @@ type QuestionResponse = {
 };
 
 const QUESTION_COUNT = 4;
-const SEARCH_STATE_KEY = "rpgers:specific-search";
-const SEARCH_STATE_TTL_MS = 6 * 60 * 60_000;
 
 type RecommendationResponse = {
   profileSummary: string;
@@ -68,62 +78,33 @@ type SearchResponse = {
   error?: string;
 };
 
-type StoredSearchState = Omit<SearchResponse, "error"> & {
-  query: string;
-  savedAt: number;
+type WorkspaceResponse = {
+  plan: Omit<RecommendationResponse, "error"> | null;
+  search: (Omit<SearchResponse, "error"> & { query: string }) | null;
+  error?: string;
 };
 
-function saveSearchState(state: Omit<StoredSearchState, "savedAt">): void {
-  try {
-    sessionStorage.setItem(
-      SEARCH_STATE_KEY,
-      JSON.stringify({ ...state, savedAt: Date.now() }),
-    );
-  } catch {
-    // Le stockage peut être désactivé : la recherche continue normalement.
-  }
-}
+type WorkspaceConflictResponse = {
+  error?: string;
+  conflicts?: Array<{
+    type: "overlap" | "duplicate-scenario" | "meal-break";
+    tableIds: number[];
+  }>;
+};
 
-function loadSearchState(): StoredSearchState | null {
-  try {
-    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<StoredSearchState>;
-    const savedAt = value.savedAt;
-    if (typeof savedAt !== "number") {
-      clearSearchState();
-      return null;
-    }
-    const isValid =
-      typeof value.query === "string" &&
-      typeof value.profileSummary === "string" &&
-      typeof value.usedLlm === "boolean" &&
-      Array.isArray(value.matches) &&
-      value.matches.every(
-        (table) =>
-          typeof table === "object" &&
-          table !== null &&
-          typeof table.id === "number" &&
-          typeof table.title === "string",
-      );
-    if (!isValid || Date.now() - savedAt > SEARCH_STATE_TTL_MS) {
-      clearSearchState();
-      return null;
-    }
-    return value as StoredSearchState;
-  } catch {
-    clearSearchState();
-    return null;
-  }
-}
+type PendingAdd = {
+  table: RecommendedTableView;
+  message: string;
+  conflictingIds: number[];
+};
 
-function clearSearchState(): void {
-  try {
-    sessionStorage.removeItem(SEARCH_STATE_KEY);
-  } catch {
-    // Aucun nettoyage possible si le stockage est désactivé.
-  }
-}
+type ReplacementPickerState = {
+  slotId: number;
+  currentTitle: string;
+  loading: boolean;
+  alternatives: RecommendedTableView[];
+  error?: string;
+};
 
 const dayFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -140,29 +121,67 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 export function RecommendationWizard() {
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>("restoring");
   const [questions, setQuestions] = useState<RecommendationQuestion[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
-  const [profileSummary, setProfileSummary] = useState("");
+  const [planSummary, setPlanSummary] = useState("");
   const [slots, setSlots] = useState<RecommendationSlotView[]>([]);
-  const [usedLlm, setUsedLlm] = useState(true);
+  const [planUsedLlm, setPlanUsedLlm] = useState(true);
+  const questionnaireUsedLlm = useRef(true);
   const [freeText, setFreeText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatches, setSearchMatches] = useState<RecommendedTableView[]>(
     [],
   );
+  const [searchSummary, setSearchSummary] = useState("");
+  const [searchUsedLlm, setSearchUsedLlm] = useState(true);
+  const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
+  const [replacementPicker, setReplacementPicker] =
+    useState<ReplacementPickerState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = loadSearchState();
-    if (!stored) return;
-    setSearchQuery(stored.query);
-    setProfileSummary(stored.profileSummary);
-    setSearchMatches(stored.matches);
-    setUsedLlm(stored.usedLlm);
-    setPhase("search-results");
+  const applyWorkspace = useCallback((data: WorkspaceResponse) => {
+    if (data.plan) {
+      setPlanSummary(data.plan.profileSummary);
+      setPlanUsedLlm(data.plan.usedLlm);
+      setSlots(data.plan.slots);
+    } else {
+      setPlanSummary("");
+      setSlots([]);
+    }
+    if (data.search) {
+      setSearchQuery(data.search.query);
+      setSearchSummary(data.search.profileSummary);
+      setSearchUsedLlm(data.search.usedLlm);
+      setSearchMatches(data.search.matches);
+    } else {
+      setSearchSummary("");
+      setSearchMatches([]);
+    }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/recommendation-workspace")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Chargement impossible");
+        return (await response.json()) as WorkspaceResponse;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        applyWorkspace(data);
+        setPhase(
+          data.plan ? "results" : data.search ? "search-results" : "idle",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPhase("idle");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyWorkspace]);
 
   async function start() {
     setPhase("loading-questions");
@@ -177,12 +196,14 @@ export function RecommendationWizard() {
           answers: [],
         }),
       });
+      if (!response.ok) {
+        const failure = (await response.json()) as QuestionResponse;
+        throw new Error(failure.error ?? "Impossible de démarrer.");
+      }
       const data = (await response.json()) as QuestionResponse;
-      if (!response.ok)
-        throw new Error(data.error ?? "Impossible de démarrer.");
       setQuestions([data.question]);
       setQuestionIndex(0);
-      setUsedLlm(data.usedLlm);
+      questionnaireUsedLlm.current = data.usedLlm;
       setPhase("questions");
     } catch (cause) {
       setError(
@@ -202,19 +223,14 @@ export function RecommendationWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "search", query: searchQuery }),
       });
-      const data = (await response.json()) as SearchResponse;
       if (!response.ok) {
-        throw new Error(data.error ?? "Impossible de chercher les parties.");
+        const failure = (await response.json()) as SearchResponse;
+        throw new Error(failure.error ?? "Impossible de chercher les parties.");
       }
-      setProfileSummary(data.profileSummary);
+      const data = (await response.json()) as SearchResponse;
+      setSearchSummary(data.profileSummary);
       setSearchMatches(data.matches);
-      setUsedLlm(data.usedLlm);
-      saveSearchState({
-        query: searchQuery.trim(),
-        profileSummary: data.profileSummary,
-        matches: data.matches,
-        usedLlm: data.usedLlm,
-      });
+      setSearchUsedLlm(data.usedLlm);
       setPhase("search-results");
     } catch (cause) {
       setError(
@@ -256,10 +272,11 @@ export function RecommendationWizard() {
             answers: serializedAnswers,
           }),
         });
-        const data = (await response.json()) as QuestionResponse;
         if (!response.ok) {
-          throw new Error(data.error ?? "Impossible de continuer.");
+          const failure = (await response.json()) as QuestionResponse;
+          throw new Error(failure.error ?? "Impossible de continuer.");
         }
+        const data = (await response.json()) as QuestionResponse;
         setQuestions([...answeredQuestions, data.question]);
         setAnswers((current) =>
           Object.fromEntries(
@@ -268,7 +285,8 @@ export function RecommendationWizard() {
             ),
           ),
         );
-        setUsedLlm((current) => current && data.usedLlm);
+        questionnaireUsedLlm.current =
+          questionnaireUsedLlm.current && data.usedLlm;
         setQuestionIndex((index) => index + 1);
         setPhase("questions");
       } catch (cause) {
@@ -292,13 +310,14 @@ export function RecommendationWizard() {
           freeText: freeText.trim() || undefined,
         }),
       });
-      const data = (await response.json()) as RecommendationResponse;
       if (!response.ok) {
-        throw new Error(data.error ?? "Impossible de créer le programme.");
+        const failure = (await response.json()) as RecommendationResponse;
+        throw new Error(failure.error ?? "Impossible de créer le programme.");
       }
-      setProfileSummary(data.profileSummary);
+      const data = (await response.json()) as RecommendationResponse;
+      setPlanSummary(data.profileSummary);
       setSlots(data.slots);
-      setUsedLlm((current) => current && data.usedLlm);
+      setPlanUsedLlm(questionnaireUsedLlm.current && data.usedLlm);
       setPhase("results");
     } catch (cause) {
       setError(
@@ -310,55 +329,148 @@ export function RecommendationWizard() {
     }
   }
 
-  function restart() {
-    clearSearchState();
-    setPhase("idle");
+  function resetQuestionnaire() {
     setQuestions([]);
     setQuestionIndex(0);
     setAnswers({});
-    setProfileSummary("");
-    setSlots([]);
-    setUsedLlm(true);
+    questionnaireUsedLlm.current = true;
     setFreeText("");
-    setSearchQuery("");
-    setSearchMatches([]);
+    setPendingAdd(null);
     setError(null);
   }
 
-  function replace(slotId: number) {
-    setSlots((currentSlots) => {
-      const slot = currentSlots.find(
-        (candidate) => candidate.slotId === slotId,
-      );
-      if (!slot) return currentSlots;
-      const usedIds = new Set(
-        currentSlots
-          .filter((candidate) => candidate.slotId !== slotId)
-          .map(({ selected }) => selected.id),
-      );
-      const otherTables = currentSlots
-        .filter((candidate) => candidate.slotId !== slotId)
-        .map(({ selected }) => selected);
-      const nextChoice = slot.alternatives.find(
-        (candidate) =>
-          !usedIds.has(candidate.id) &&
-          otherTables.every((other) => !overlaps(candidate, other)) &&
-          keepsMealBreaks([...otherTables, candidate]),
-      );
-      if (!nextChoice) return currentSlots;
-      return currentSlots.map((candidate) =>
-        candidate.slotId === slotId
-          ? {
-              ...candidate,
-              selected: nextChoice,
-              alternatives: [
-                slot.selected,
-                ...slot.alternatives.filter(({ id }) => id !== nextChoice.id),
-              ],
-            }
-          : candidate,
-      );
+  async function clearPart(part: "plan" | "search") {
+    const response = await fetch("/api/recommendation-workspace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: part === "plan" ? "clear-plan" : "clear-search",
+      }),
     });
+    if (!response.ok) {
+      setError("Impossible d’effacer cette sélection.");
+      return;
+    }
+    if (part === "plan") {
+      setPlanSummary("");
+      setSlots([]);
+      setPlanUsedLlm(true);
+      resetQuestionnaire();
+      setPhase(searchMatches.length > 0 ? "search-results" : "idle");
+    } else {
+      setSearchQuery("");
+      setSearchMatches([]);
+      setSearchSummary("");
+      setSearchUsedLlm(true);
+      setPendingAdd(null);
+      setPhase(slots.length > 0 ? "results" : "idle");
+    }
+  }
+
+  async function mutatePlan(
+    body: Record<string, string | number>,
+    tableForConflict?: RecommendedTableView,
+  ): Promise<boolean> {
+    setError(null);
+    const response = await fetch("/api/recommendation-workspace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const conflict = (await response.json()) as WorkspaceConflictResponse;
+      if (response.status === 409 && tableForConflict) {
+        setPendingAdd({
+          table: tableForConflict,
+          message: conflict.error ?? "Cette table demande un remplacement.",
+          conflictingIds: [
+            ...new Set(
+              (conflict.conflicts ?? []).flatMap(({ tableIds }) => tableIds),
+            ),
+          ],
+        });
+      } else {
+        setError(conflict.error ?? "Impossible de modifier le planning.");
+      }
+      return false;
+    }
+    const data = (await response.json()) as WorkspaceResponse;
+    applyWorkspace(data);
+    setPendingAdd(null);
+    return true;
+  }
+
+  async function addToPlan(
+    table: RecommendedTableView,
+    replaceTableId?: number,
+  ) {
+    const success = await mutatePlan(
+      {
+        action: "add",
+        tableId: table.id,
+        ...(replaceTableId ? { replaceTableId } : {}),
+      },
+      table,
+    );
+    if (success) setPhase("results");
+  }
+
+  async function openReplacementPicker(slotId: number) {
+    const slot = slots.find((candidate) => candidate.slotId === slotId);
+    if (!slot) return;
+    setReplacementPicker({
+      slotId,
+      currentTitle: slot.selected.title,
+      loading: true,
+      alternatives: [],
+    });
+    try {
+      const response = await fetch("/api/recommendation-workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "alternatives", tableId: slotId }),
+      });
+      if (!response.ok) {
+        const failure = (await response.json()) as { error?: string };
+        throw new Error(
+          failure.error ?? "Impossible de chercher des alternatives.",
+        );
+      }
+      const data = (await response.json()) as {
+        alternatives?: RecommendedTableView[];
+      };
+      setReplacementPicker({
+        slotId,
+        currentTitle: slot.selected.title,
+        loading: false,
+        alternatives: data.alternatives ?? [],
+      });
+    } catch (cause) {
+      setReplacementPicker({
+        slotId,
+        currentTitle: slot.selected.title,
+        loading: false,
+        alternatives: [],
+        error:
+          cause instanceof Error
+            ? cause.message
+            : "Impossible de chercher des alternatives.",
+      });
+    }
+  }
+
+  async function chooseReplacement(replacementId: number) {
+    if (!replacementPicker) return;
+    const success = await mutatePlan({
+      action: "replace",
+      tableId: replacementPicker.slotId,
+      replacementId,
+    });
+    if (success) setReplacementPicker(null);
+  }
+
+  async function removeFromPlan(tableId: number) {
+    await mutatePlan({ action: "remove", tableId });
   }
 
   if (phase === "idle") {
@@ -385,6 +497,10 @@ export function RecommendationWizard() {
     );
   }
 
+  if (phase === "restoring") {
+    return <WorkspaceRestoringState />;
+  }
+
   if (phase === "search") {
     return (
       <SearchForm
@@ -392,7 +508,7 @@ export function RecommendationWizard() {
         error={error}
         onChange={setSearchQuery}
         onSubmit={runSearch}
-        onBack={restart}
+        onBack={() => setPhase(slots.length > 0 ? "results" : "idle")}
       />
     );
   }
@@ -405,14 +521,16 @@ export function RecommendationWizard() {
     return (
       <SearchResults
         query={searchQuery}
-        profileSummary={profileSummary}
+        profileSummary={searchSummary}
         matches={searchMatches}
-        usedLlm={usedLlm}
-        onEdit={() => {
-          clearSearchState();
-          setPhase("search");
-        }}
-        onRestart={restart}
+        usedLlm={searchUsedLlm}
+        planSlots={slots}
+        pendingAdd={pendingAdd}
+        onAdd={addToPlan}
+        onCancelAdd={() => setPendingAdd(null)}
+        onOpenPlan={() => setPhase("results")}
+        onEdit={() => setPhase("search")}
+        onRestart={() => clearPart("search")}
       />
     );
   }
@@ -429,17 +547,25 @@ export function RecommendationWizard() {
   if (phase === "results") {
     return (
       <Results
-        profileSummary={profileSummary}
+        profileSummary={planSummary}
         slots={slots}
-        usedLlm={usedLlm}
-        onReplace={replace}
-        onRestart={restart}
+        usedLlm={planUsedLlm}
+        replacementPicker={replacementPicker}
+        onReplace={openReplacementPicker}
+        onChooseReplacement={chooseReplacement}
+        onCloseReplacement={() => setReplacementPicker(null)}
+        onRemove={removeFromPlan}
+        onSearch={() =>
+          setPhase(searchMatches.length > 0 ? "search-results" : "search")
+        }
+        onRestart={() => clearPart("plan")}
       />
     );
   }
 
   const currentQuestion = questions[questionIndex];
   const currentAnswer = answers[currentQuestion.id] ?? [];
+  const currentAnswerSet = new Set(currentAnswer);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
@@ -454,9 +580,9 @@ export function RecommendationWizard() {
               aria-hidden
             >
               <div
-                className="h-full rounded-full bg-primary transition-[width]"
+                className="h-full origin-left rounded-full bg-primary transition-transform"
                 style={{
-                  width: `${((questionIndex + 1) / QUESTION_COUNT) * 100}%`,
+                  transform: `scaleX(${(questionIndex + 1) / QUESTION_COUNT})`,
                 }}
               />
             </div>
@@ -481,7 +607,7 @@ export function RecommendationWizard() {
 
           <fieldset className="mt-7 grid gap-2.5" aria-label="Réponses">
             {currentQuestion.options.map((option) => {
-              const selected = currentAnswer.includes(option.id);
+              const selected = currentAnswerSet.has(option.id);
               return (
                 <button
                   key={option.id}
@@ -611,6 +737,22 @@ function ChoiceCard({
   );
 }
 
+function WorkspaceRestoringState() {
+  return (
+    <Card className="min-h-64 place-content-center text-center">
+      <CardContent className="flex flex-col items-center py-10">
+        <LoaderCircle
+          className="size-6 animate-spin text-primary"
+          aria-hidden
+        />
+        <p className="mt-3 text-sm text-muted-foreground">
+          On retrouve ta dernière sélection…
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SearchForm({
   query,
   error,
@@ -701,6 +843,11 @@ function SearchResults({
   profileSummary,
   matches,
   usedLlm,
+  planSlots,
+  pendingAdd,
+  onAdd,
+  onCancelAdd,
+  onOpenPlan,
   onEdit,
   onRestart,
 }: {
@@ -708,9 +855,15 @@ function SearchResults({
   profileSummary: string;
   matches: RecommendedTableView[];
   usedLlm: boolean;
+  planSlots: RecommendationSlotView[];
+  pendingAdd: PendingAdd | null;
+  onAdd: (table: RecommendedTableView, replaceTableId?: number) => void;
+  onCancelAdd: () => void;
+  onOpenPlan: () => void;
   onEdit: () => void;
   onRestart: () => void;
 }) {
+  const conflictingIdSet = new Set(pendingAdd?.conflictingIds ?? []);
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-primary/20 bg-primary/8 p-5 sm:p-6">
@@ -732,6 +885,12 @@ function SearchResults({
             )}
           </div>
           <div className="flex shrink-0 gap-2">
+            {planSlots.length > 0 && (
+              <Button variant="outline" size="sm" onClick={onOpenPlan}>
+                <CalendarRange aria-hidden />
+                Mon planning ({planSlots.length})
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onEdit}>
               Modifier
             </Button>
@@ -743,6 +902,44 @@ function SearchResults({
         </div>
       </div>
 
+      {pendingAdd && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="text-base">Un choix est nécessaire</CardTitle>
+            <CardDescription>{pendingAdd.message}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pendingAdd.conflictingIds.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {planSlots
+                  .filter(({ selected }) => conflictingIdSet.has(selected.id))
+                  .map(({ selected }) => (
+                    <Button
+                      key={selected.id}
+                      size="sm"
+                      onClick={() => onAdd(pendingAdd.table, selected.id)}
+                    >
+                      Remplacer « {selected.title} »
+                    </Button>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Cette table n’est plus disponible pour le moment.
+              </p>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={onCancelAdd}
+            >
+              Annuler
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {matches.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
@@ -752,7 +949,14 @@ function SearchResults({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {matches.map((table) => (
-            <SpecificTableCard key={table.id} table={table} />
+            <SpecificTableCard
+              key={table.id}
+              table={table}
+              isInPlan={planSlots.some(
+                ({ selected }) => selected.id === table.id,
+              )}
+              onAdd={() => onAdd(table)}
+            />
           ))}
         </div>
       )}
@@ -760,7 +964,15 @@ function SearchResults({
   );
 }
 
-function SpecificTableCard({ table }: { table: RecommendedTableView }) {
+function SpecificTableCard({
+  table,
+  isInPlan,
+  onAdd,
+}: {
+  table: RecommendedTableView;
+  isInPlan: boolean;
+  onAdd: () => void;
+}) {
   return (
     <Card className="gap-4 py-5 shadow-sm">
       <CardHeader className="px-5">
@@ -799,6 +1011,17 @@ function SpecificTableCard({ table }: { table: RecommendedTableView }) {
             {table.seatsLeft} place{table.seatsLeft > 1 ? "s" : ""}
           </span>
         </div>
+        <Button
+          type="button"
+          variant={isInPlan ? "secondary" : "default"}
+          size="sm"
+          disabled={isInPlan}
+          onClick={onAdd}
+          className="w-full"
+        >
+          <CalendarPlus aria-hidden />
+          {isInPlan ? "Déjà dans mon planning" : "Ajouter à mon planning"}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -840,13 +1063,23 @@ function Results({
   profileSummary,
   slots,
   usedLlm,
+  replacementPicker,
   onReplace,
+  onChooseReplacement,
+  onCloseReplacement,
+  onRemove,
+  onSearch,
   onRestart,
 }: {
   profileSummary: string;
   slots: RecommendationSlotView[];
   usedLlm: boolean;
-  onReplace: (slotId: number) => void;
+  replacementPicker: ReplacementPickerState | null;
+  onReplace: (slotId: number) => void | Promise<void>;
+  onChooseReplacement: (tableId: number) => void | Promise<void>;
+  onCloseReplacement: () => void;
+  onRemove: (tableId: number) => void | Promise<void>;
+  onSearch: () => void;
   onRestart: () => void;
 }) {
   const days = useMemo(() => groupSlotsByDay(slots), [slots]);
@@ -872,12 +1105,28 @@ function Results({
               </p>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={onRestart}>
-            <RotateCcw aria-hidden />
-            Recommencer
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={onSearch}>
+              <Search aria-hidden />
+              Chercher une table
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onRestart}>
+              <RotateCcw aria-hidden />
+              Recommencer
+            </Button>
+          </div>
         </div>
       </div>
+
+      {replacementPicker && (
+        <ReplacementPicker
+          state={replacementPicker}
+          onChoose={onChooseReplacement}
+          onClose={onCloseReplacement}
+        />
+      )}
+
+      {slots.length > 0 && <RegistrationPanel slots={slots} />}
 
       {slots.length === 0 ? (
         <Card>
@@ -912,6 +1161,7 @@ function Results({
                     key={item.slot.slotId}
                     slot={item.slot}
                     onReplace={() => onReplace(item.slot.slotId)}
+                    onRemove={() => onRemove(item.slot.selected.id)}
                   />
                 ) : (
                   <MealBreakCard key={item.kind} item={item} />
@@ -922,6 +1172,215 @@ function Results({
         ))
       )}
     </div>
+  );
+}
+
+function ReplacementPicker({
+  state,
+  onChoose,
+  onClose,
+}: {
+  state: ReplacementPickerState;
+  onChoose: (tableId: number) => void | Promise<void>;
+  onClose: () => void;
+}) {
+  return (
+    <Card className="border-primary/30">
+      <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>Remplacer « {state.currentTitle} »</CardTitle>
+          <CardDescription className="mt-1">
+            Ces tables restent compatibles avec le reste du planning, pauses
+            repas comprises.
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Fermer
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {state.loading ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            Recherche des meilleures alternatives…
+          </p>
+        ) : state.error ? (
+          <ErrorMessage message={state.error} />
+        ) : state.alternatives.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aucune autre table disponible ne peut remplacer celle-ci sans créer
+            de conflit. Tu peux retirer une partie ou chercher une table avec
+            d’autres horaires.
+          </p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {state.alternatives.map((table) => (
+              <div
+                key={table.id}
+                className="rounded-xl border bg-card p-4 text-sm"
+              >
+                <p className="text-xs font-semibold text-primary">
+                  {dayFormatter.format(new Date(table.start))} ·{" "}
+                  {formatTimeRange(table.start, table.end)}
+                </p>
+                <Link
+                  href={`/tables/${table.id}`}
+                  className="mt-1 block font-semibold hover:text-primary hover:underline"
+                >
+                  {table.title}
+                </Link>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {table.system} · MJ {table.gameMaster}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed">{table.reason}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={() => onChoose(table.id)}
+                >
+                  Choisir cette table
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type RegistrationResult = {
+  tableId: number;
+  status: "registered" | "already-registered" | "failed";
+  message?: string;
+};
+
+function RegistrationPanel({ slots }: { slots: RecommendationSlotView[] }) {
+  const [reviewing, setReviewing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<RegistrationResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function registerAll() {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/recommendation-workspace/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      if (!response.ok) {
+        const failure = (await response.json()) as { error?: string };
+        throw new Error(
+          failure.error ?? "Impossible de confirmer les inscriptions.",
+        );
+      }
+      const data = (await response.json()) as {
+        results?: RegistrationResult[];
+      };
+      setResults(data.results ?? []);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Impossible de confirmer les inscriptions.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!reviewing) {
+    return (
+      <Button size="lg" className="w-full" onClick={() => setReviewing(true)}>
+        <CheckCircle2 aria-hidden />
+        Vérifier et confirmer mes inscriptions
+      </Button>
+    );
+  }
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-lg">Confirmer les inscriptions</CardTitle>
+        <CardDescription>
+          Les places et tes inscriptions existantes seront vérifiées une
+          dernière fois. Une réussite peut être partielle si une table se
+          remplit pendant l’opération.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <ul className="divide-y rounded-xl border">
+          {slots.map(({ selected }) => {
+            const result = results.find(
+              ({ tableId }) => tableId === selected.id,
+            );
+            return (
+              <li
+                key={selected.id}
+                className="flex items-start justify-between gap-4 px-4 py-3 text-sm"
+              >
+                <div>
+                  <Link
+                    href={`/tables/${selected.id}`}
+                    className="font-medium hover:text-primary hover:underline"
+                  >
+                    {selected.title}
+                  </Link>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {dayFormatter.format(new Date(selected.start))} ·{" "}
+                    {formatTimeRange(selected.start, selected.end)}
+                  </p>
+                  {result?.message && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {result.message}
+                    </p>
+                  )}
+                </div>
+                {result && (
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 text-xs font-medium",
+                      result.status === "failed"
+                        ? "text-destructive"
+                        : "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
+                    {result.status === "failed" ? (
+                      <CircleAlert className="size-3.5" aria-hidden />
+                    ) : (
+                      <CheckCircle2 className="size-3.5" aria-hidden />
+                    )}
+                    {result.status === "registered"
+                      ? "Inscrit·e"
+                      : result.status === "already-registered"
+                        ? "Déjà inscrit·e"
+                        : "Échec"}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {error && <ErrorMessage message={error} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="ghost"
+            disabled={loading}
+            onClick={() => setReviewing(false)}
+          >
+            Fermer
+          </Button>
+          <Button disabled={loading} onClick={registerAll}>
+            {loading && <LoaderCircle className="animate-spin" aria-hidden />}
+            Confirmer {slots.length} inscription
+            {slots.length > 1 ? "s" : ""}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -951,9 +1410,11 @@ function MealBreakCard({ item }: { item: MealBreakItem }) {
 function RecommendationCard({
   slot,
   onReplace,
+  onRemove,
 }: {
   slot: RecommendationSlotView;
-  onReplace: () => void;
+  onReplace: () => void | Promise<void>;
+  onRemove: () => void | Promise<void>;
 }) {
   const table = slot.selected;
   return (
@@ -975,17 +1436,27 @@ function RecommendationCard({
             {table.system} · MJ {table.gameMaster}
           </CardDescription>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={slot.alternatives.length === 0}
-          onClick={onReplace}
-          className="w-fit"
-        >
-          <RefreshCw aria-hidden />
-          Changer
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onReplace}
+            className="w-fit"
+          >
+            <RefreshCw aria-hidden />
+            Changer
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onRemove}
+            aria-label={`Retirer ${table.title} du planning`}
+          >
+            <Trash2 aria-hidden />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3 sm:px-5">
         <p className="rounded-lg bg-primary/7 px-3 py-2 text-sm leading-relaxed">
@@ -1108,16 +1579,6 @@ function findMealBreak(
     : null;
 }
 
-function keepsMealBreaks(tables: RecommendedTableView[]) {
-  const byDay = Map.groupBy(tables, ({ start }) => eventDayKey(start));
-  return [...byDay.values()].every(
-    (dayTables) =>
-      findMealBreak(dayTables, "lunch", "déjeuner", 11 * 60, 15 * 60) !==
-        null &&
-      findMealBreak(dayTables, "dinner", "dîner", 17 * 60, 22 * 60) !== null,
-  );
-}
-
 function localMinute(date: Date) {
   const parts = timeFormatter.formatToParts(date);
   const hour = Number(parts.find(({ type }) => type === "hour")?.value ?? 0);
@@ -1162,11 +1623,4 @@ function groupSlotsByDay(slots: RecommendationSlotView[]) {
 
 function formatTimeRange(start: string, end: string) {
   return `${timeFormatter.format(new Date(start))}–${timeFormatter.format(new Date(end))}`;
-}
-
-function overlaps(left: RecommendedTableView, right: RecommendedTableView) {
-  return (
-    new Date(left.start) < new Date(right.end) &&
-    new Date(right.start) < new Date(left.end)
-  );
 }

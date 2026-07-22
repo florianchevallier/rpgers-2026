@@ -8,6 +8,10 @@ import { tablesToMarkdown } from "@/domain/tables-markdown";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/ratelimit";
 import {
+  saveGeneratedPlan,
+  saveGeneratedSearch,
+} from "@/server/recommendation-workspace";
+import {
   createRecommendationQuestion,
   maxTablesPerDay,
   preferredDuration,
@@ -65,6 +69,13 @@ export async function POST(request: Request) {
         currentUserId: session.user.id,
         isAdult: session.user.isAdult,
       });
+      await saveGeneratedSearch(
+        session.user.id,
+        body.data.query,
+        ranking.profileSummary,
+        ranking.usedLlm,
+        matches,
+      );
       return NextResponse.json({
         profileSummary: ranking.profileSummary,
         usedLlm: ranking.usedLlm,
@@ -110,6 +121,12 @@ export async function POST(request: Request) {
       maxPerDay: maxTablesPerDay(body.data.answers),
       preferredDuration: preferredDuration(body.data.answers),
     });
+    await saveGeneratedPlan(
+      session.user.id,
+      ranking.profileSummary,
+      ranking.usedLlm,
+      plan,
+    );
 
     return NextResponse.json({
       profileSummary: ranking.profileSummary,

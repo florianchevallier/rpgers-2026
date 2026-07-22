@@ -133,7 +133,9 @@ export function buildRecommendationPlan(
           ({ table }) =>
             !selectedIds.has(table.id) &&
             otherSelections.every(
-              ({ table: other }) => !overlap(table, other),
+              ({ table: other }) =>
+                !overlap(table, other) &&
+                scenarioKey(table) !== scenarioKey(other),
             ) &&
             hasMealBreaks([
               ...otherSelections.filter(
@@ -229,7 +231,13 @@ function bestNonOverlapping(
 
     for (let index = startIndex; index < sorted.length; index++) {
       const candidate = sorted[index];
-      if (selected.some(({ table }) => overlap(table, candidate.table))) {
+      if (
+        selected.some(
+          ({ table }) =>
+            overlap(table, candidate.table) ||
+            scenarioKey(table) === scenarioKey(candidate.table),
+        )
+      ) {
         continue;
       }
       visit(index + 1, [...selected, candidate]);
@@ -275,6 +283,111 @@ function hasMealBreaks(candidates: Candidate[]): boolean {
   });
 }
 
+export type PlanConflict = {
+  type: "overlap" | "duplicate-scenario" | "meal-break";
+  tableIds: number[];
+};
+
+/** Vérifie l'ajout ou le remplacement d'une table dans un planning manuel. */
+export function findPlanConflicts(
+  existing: RpgersTable[],
+  candidate: RpgersTable,
+): PlanConflict[] {
+  const sameDay = existing.filter(
+    (table) =>
+      eventDayKey(table.startDatetime) === eventDayKey(candidate.startDatetime),
+  );
+  const overlaps = sameDay.filter((table) => overlap(table, candidate));
+  const duplicates = existing.filter(
+    (table) => scenarioKey(table) === scenarioKey(candidate),
+  );
+  const conflicts: PlanConflict[] = [];
+  if (overlaps.length > 0) {
+    conflicts.push({
+      type: "overlap",
+      tableIds: overlaps.map(({ id }) => id),
+    });
+  }
+  if (duplicates.length > 0) {
+    conflicts.push({
+      type: "duplicate-scenario",
+      tableIds: duplicates.map(({ id }) => id),
+    });
+  }
+  if (
+    !hasMealBreaks(
+      [...sameDay, candidate].map((table) => ({
+        table,
+        score: 0,
+        reason: "",
+      })),
+    )
+  ) {
+    conflicts.push({
+      type: "meal-break",
+      tableIds: sameDay.map(({ id }) => id),
+    });
+  }
+  return conflicts;
+}
+
+export function scenarioKey(table: RpgersTable): string {
+  const normalize = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLocaleLowerCase("fr-FR")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  return `${normalize(table.titre)}|${normalize(table.systemeJeu)}|${table.ownerId}`;
+}
+
+export function isRecommendationEligible(
+  table: RpgersTable,
+  policy: Pick<RecommendationPolicy, "currentUserId" | "isAdult">,
+): boolean {
+  return isEligible(table, { ...policy, maxPerDay: Number.MAX_SAFE_INTEGER });
+}
+
+/** Trouve à la demande des remplaçantes proches qui conservent un planning valide. */
+export function buildReplacementAlternatives(
+  tables: RpgersTable[],
+  reference: RpgersTable,
+  existing: RpgersTable[],
+  policy: Pick<RecommendationPolicy, "currentUserId" | "isAdult">,
+  limit = 12,
+): SpecificTableMatch[] {
+  const selectedIds = new Set(existing.map(({ id }) => id));
+  const referenceCandidate = { table: reference, score: 0, reason: "" };
+
+  return tables
+    .filter(
+      (table) =>
+        table.id !== reference.id &&
+        !selectedIds.has(table.id) &&
+        isRecommendationEligible(table, policy) &&
+        findPlanConflicts(existing, table).length === 0,
+    )
+    .map((table) => ({
+      table,
+      similarity: similarityScore(
+        { table, score: 0, reason: "" },
+        referenceCandidate,
+      ),
+    }))
+    .toSorted(
+      (left, right) =>
+        right.similarity - left.similarity ||
+        left.table.startDatetime.getTime() -
+          right.table.startDatetime.getTime(),
+    )
+    .slice(0, limit)
+    .map(({ table }) => ({
+      table,
+      reason: replacementReason(table, reference),
+    }));
+}
+
 function localMinuteOfDay(date: Date): number {
   const parts = localTimePartsFormatter.formatToParts(date);
   const hour = Number(parts.find(({ type }) => type === "hour")?.value ?? 0);
@@ -318,4 +431,31 @@ function similarityScore(candidate: Candidate, reference: Candidate): number {
     labelSimilarity * 30 +
     Math.max(0, 15 - startDistanceHours)
   );
+}
+
+function replacementReason(
+  candidate: RpgersTable,
+  reference: RpgersTable,
+): string {
+  const sameSystem =
+    candidate.systemeJeu.toLocaleLowerCase("fr-FR") ===
+    reference.systemeJeu.toLocaleLowerCase("fr-FR");
+  const referenceLabels = new Set(
+    reference.labels.map(({ label }) => label.id),
+  );
+  const sharedLabels = candidate.labels
+    .map(({ label }) => label)
+    .filter(({ id }) => referenceLabels.has(id))
+    .map(({ nom }) => nom)
+    .slice(0, 2);
+
+  if (sameSystem && sharedLabels.length > 0) {
+    return `Même système, avec aussi ${sharedLabels.join(" et ").toLocaleLowerCase("fr-FR")}.`;
+  }
+  if (sameSystem)
+    return `Une autre partie avec le système ${candidate.systemeJeu}.`;
+  if (sharedLabels.length > 0) {
+    return `Une ambiance proche : ${sharedLabels.join(" et ").toLocaleLowerCase("fr-FR")}.`;
+  }
+  return "Une autre partie compatible avec le reste de ton planning.";
 }

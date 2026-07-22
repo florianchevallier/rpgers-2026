@@ -50,6 +50,15 @@ model FilterPreset {
   @@index([userId])
 }
 
+/// Dernier espace de choix de l'utilisateur : planning et recherche ciblée
+/// restent indépendants et survivent aux fermetures de la PWA.
+model RecommendationWorkspace {
+  userId    Int      @id
+  planJson  String?
+  searchJson String?
+  updatedAt DateTime @updatedAt
+}
+
 /// État durable du poller Slack. Une ligne unique (id=1) distingue le tout
 /// premier passage d'une convention momentanément sans tablées.
 model SlackSyncState {
